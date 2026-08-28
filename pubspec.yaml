@@ -1,0 +1,30 @@
+name: badele
+description: >-
+  Device intelligence and fraud signals for Flutter. A binding to the native
+  iOS and Android SDKs, which do the collecting.
+version: 0.1.0
+homepage: https://badele.io
+repository: https://github.com/badele-io/sdk-flutter
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: BadelePlugin
+        sharedDarwinSource: false
+      android:
+        package: io.badele.sdk.flutter
+        pluginClass: BadelePlugin
