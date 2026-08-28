@@ -146,6 +146,21 @@ damage than the fraud it was looking for.
 
 ## Status
 
-The **iOS** side is implemented and calls
-[`mobile/ios`](../ios). The **Android** side is declared in `pubspec.yaml` and
-its plugin class is not written yet — it lands with the Android SDK.
+Both platforms are implemented. The **iOS** plugin calls
+[`mobile/ios`](../ios) and the **Android** plugin calls
+[`mobile/android`](../android); each is a method-channel handler that forwards
+to that SDK's `BadeleBridge` and hops the result back to the platform thread.
+
+Neither has been compiled here — there is no Flutter toolchain on the machine
+this was written on, and a plugin needs `Flutter.framework` and
+`flutter_embedding` on the compile path. What they call is compiled and tested
+by each native SDK's own suite.
+
+The Android plugin depends on `io.badele:badele:0.1.0`, which is not published
+yet. Until it is, build the SDK's AAR into your local Maven repository:
+
+```
+cd ../android && ./gradlew :badele:publishToMavenLocal
+```
+
+and add `mavenLocal()` to the host app's repositories.

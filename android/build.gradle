@@ -1,0 +1,65 @@
+// The Gradle module Flutter's plugin tooling picks up.
+//
+// It depends on the native SDK rather than vendoring a copy of it. That is the
+// whole architecture in one line: `mobile/android` is the implementation, and
+// this package is a binding to it, so a fix to a root check reaches Flutter
+// apps by bumping one dependency rather than by porting the fix a second time.
+// The iOS podspec beside it says the same thing about `mobile/ios`.
+
+group 'io.badele.sdk.flutter'
+version '0.1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.11.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+android {
+    namespace 'io.badele.sdk.flutter'
+    compileSdk 36
+
+    defaultConfig {
+        // Matches the native SDK's floor. Raising it here would exclude apps
+        // the SDK itself supports, and lowering it would promise a platform the
+        // code does not build for.
+        minSdk 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+}
+
+dependencies {
+    // The SDK that does the collecting.
+    //
+    // Not published yet — see the note in the package README. Until it is, an
+    // app building this from the monorepo substitutes the local project with a
+    // `dependencySubstitution` block in its own settings file.
+    implementation 'io.badele:badele:0.1.0'
+}
