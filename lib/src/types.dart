@@ -270,17 +270,98 @@ class SignalReport {
       );
 }
 
+/// One thing the server scored on.
+class IdentifyTrigger {
+  const IdentifyTrigger({
+    required this.signal,
+    required this.group,
+    required this.weight,
+    required this.confidence,
+    required this.reason,
+  });
+
+  /// The signal that fired, such as `patched-natives`.
+  final String signal;
+
+  /// The family it belongs to. Empty when it belongs to none.
+  final String group;
+
+  /// What it was worth towards the score.
+  final int weight;
+
+  /// How sure the server is of this one signal.
+  final String confidence;
+
+  /// A short explanation, when there is one.
+  final String reason;
+
+  factory IdentifyTrigger.fromJson(Map<String, dynamic> json) =>
+      IdentifyTrigger(
+        signal: json['signal'] as String? ?? '',
+        group: json['group'] as String? ?? '',
+        weight: (json['weight'] as num?)?.toInt() ?? 0,
+        confidence: json['confidence'] as String? ?? '',
+        reason: json['reason'] as String? ?? '',
+      );
+}
+
 /// What `identify()` resolves with.
 class IdentifyResult {
   const IdentifyResult({
     required this.requestId,
+    required this.visitorId,
+    required this.visitorIsNew,
+    required this.visitorConfidence,
+    required this.identifiable,
+    required this.duplicate,
+    required this.state,
+    required this.reason,
+    required this.suspectScore,
+    required this.suspectLevel,
+    required this.triggers,
     required this.verdicts,
     required this.report,
   });
 
-  /// Empty when `submit` was false: nothing was sent, so there is nothing to
-  /// fetch later, and an invented identifier would be worse than an empty one.
+  /// Empty when `submit` was false: nothing was sent, so an invented
+  /// identifier would be worse than an empty one.
   final String requestId;
+
+  /// Who the server decided this is, stable across visits. Empty when nothing
+  /// was submitted.
+  final String visitorId;
+
+  /// True when the server had never seen this visitor before.
+  final bool visitorIsNew;
+
+  /// How sure the server is of [visitorId], 0 to 100.
+  final int visitorConfidence;
+
+  /// False when the report carried too little to identify anyone.
+  final bool identifiable;
+
+  /// True when this submission was answered before, and this verdict belongs
+  /// to the first one.
+  final bool duplicate;
+
+  /// The server's disposition of the check.
+  final String state;
+
+  /// Why, when [state] needs explaining. Empty when it does not.
+  final String reason;
+
+  /// The server's score, or null when it did not score.
+  ///
+  /// Null and 0 are different answers: 0 is "scored, nothing fired", null is
+  /// "nobody scored it". Do not collapse them with `?? 0` — that turns an
+  /// unscored check into a clean one.
+  final int? suspectScore;
+
+  /// The score as a band — `low`, `medium`, `high`. Null when unscored.
+  final String? suspectLevel;
+
+  /// What the server scored on. Empty when it found nothing.
+  final List<IdentifyTrigger> triggers;
 
   /// The local verdicts, available immediately. Advisory — the server's are
   /// the answer.
@@ -291,6 +372,24 @@ class IdentifyResult {
 
   factory IdentifyResult.fromJson(Map<String, dynamic> json) => IdentifyResult(
         requestId: json['requestId'] as String? ?? '',
+        visitorId: json['visitorId'] as String? ?? '',
+        visitorIsNew: json['visitorIsNew'] as bool? ?? false,
+        visitorConfidence: (json['visitorConfidence'] as num?)?.toInt() ?? 0,
+        identifiable: json['identifiable'] as bool? ?? false,
+        duplicate: json['duplicate'] as bool? ?? false,
+        state: json['state'] as String? ?? '',
+        reason: json['reason'] as String? ?? '',
+        // Read without a fallback, unlike everything above it. The native
+        // bridges send an explicit null when nothing scored the submission,
+        // and `?? 0` here would turn that into a clean verdict — which is the
+        // one answer that lets somebody through.
+        suspectScore: (json['suspectScore'] as num?)?.toInt(),
+        suspectLevel: json['suspectLevel'] as String?,
+        triggers: ((json['triggers'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((trigger) =>
+                IdentifyTrigger.fromJson(trigger.cast<String, dynamic>()))
+            .toList(growable: false),
         verdicts: Verdicts.fromJson(
           (json['verdicts'] as Map?)?.cast<String, dynamic>() ?? const {},
         ),

@@ -28,11 +28,13 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a
 shipped binary — it is scoped to the app identifiers you list. A **secret** key
 is refused when it arrives from a client.
 
-`identify()` collects, scores on the device, and submits. It returns as soon as
-the server has a receipt — IP geolocation and the velocity windows are computed
-after the response — so what comes back is a `requestId` rather than a finished
-event. Send it to your own backend with the request it belongs to, and let your
-backend fetch the finished event and decide.
+`identify()` collects, scores on the device, and submits. It resolves with the
+server's verdict — `visitorId`, `suspectScore`, `suspectLevel` and the triggers
+behind them — so there is no second call to make. Send the `requestId` and
+`visitorId` to your own backend with the request they belong to, and let your
+backend decide: **the score in your hand came from a device you do not
+control**, and an app that branches on it locally is an app whose branch can be
+patched out.
 
 Pass `submit: false` to collect and score without sending anything.
 

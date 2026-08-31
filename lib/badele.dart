@@ -101,12 +101,15 @@ class Badele {
 
   /// Collect, score on the device, and submit.
   ///
-  /// Returns as soon as the server has a receipt. It does not wait for the
-  /// enriched event — IP geolocation and the velocity windows take far longer
-  /// than a screen should block for — so this answers with a [IdentifyResult.requestId]
-  /// that the finished event is fetched by.
+  /// Returns the server's verdict, not a receipt for one. There is no second
+  /// call to make: the address lookup and the scoring happen on the request,
+  /// so [IdentifyResult.suspectScore] and [IdentifyResult.visitorId] are
+  /// populated by the time this resolves.
   ///
-  /// Pass `submit: false` to collect and score without sending anything.
+  /// Pass `submit: false` to collect and score without sending anything. The
+  /// server's fields come back empty then, and [IdentifyResult.suspectScore]
+  /// stays null rather than 0 — nobody scored it, which is not the same as
+  /// scoring it and finding nothing.
   Future<IdentifyResult> identify({String? tag, bool submit = true}) async {
     final raw = await _invoke<String>('identify', {
       'tag': tag,
