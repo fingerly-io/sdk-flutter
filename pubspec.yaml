@@ -1,4 +1,4 @@
-name: badele
+name: badele_flutter
 description: >-
   Device intelligence and fraud signals for Flutter. A binding to the native
   iOS and Android SDKs, which do the collecting.

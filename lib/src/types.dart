@@ -412,6 +412,7 @@ class BadeleException implements Exception {
   final int? status;
 
   @override
-  String toString() =>
-      status == null ? 'BadeleException: $message' : 'BadeleException($status): $message';
+  String toString() => status == null
+      ? 'BadeleException: $message'
+      : 'BadeleException($status): $message';
 }

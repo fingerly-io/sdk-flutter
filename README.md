@@ -1,11 +1,11 @@
-# badele
+# Badele for Flutter
 
 Flutter bindings for Badele. A binding to the native iOS and Android SDKs, which
 do the collecting.
 
 ```yaml
 dependencies:
-  badele: ^0.1.0
+  badele_flutter: ^0.1.0
 ```
 
 Requires Flutter **3.10** or newer, iOS **13** or newer.
@@ -13,7 +13,7 @@ Requires Flutter **3.10** or newer, iOS **13** or newer.
 ## Identify
 
 ```dart
-import 'package:badele/badele.dart';
+import 'package:badele_flutter/badele.dart';
 
 final badele = await Badele.load(apiKey: 'pk_live_…');
 final result = await badele.identify(tag: 'checkout');
@@ -148,15 +148,28 @@ damage than the fraud it was looking for.
 
 ## Status
 
-Both platforms are implemented. The **iOS** plugin calls
+Both platforms are implemented and compiled. The **iOS** plugin calls
 [`mobile/ios`](../ios) and the **Android** plugin calls
 [`mobile/android`](../android); each is a method-channel handler that forwards
 to that SDK's `BadeleBridge` and hops the result back to the platform thread.
 
-Neither has been compiled here — there is no Flutter toolchain on the machine
-this was written on, and a plugin needs `Flutter.framework` and
-`flutter_embedding` on the compile path. What they call is compiled and tested
-by each native SDK's own suite.
+The Dart contract has bridge, decoding and error-shape tests. The iOS bridge is
+verified through both CocoaPods and Swift Package Manager, and has run on an
+iPhone 16e simulator: all 21 native sources collected in 142ms and
+`simulator=true`. The Android bridge builds into a debug APK and has run on an
+API 36 Pixel 8 emulator: all 22 native sources completed, `emulator=true`, with
+a 1095ms cold collection and a 122ms warm collection.
+
+The native SDKs are not published yet. For a CocoaPods development build, point
+the host application's Podfile at the sibling iOS checkout:
+
+```ruby
+pod 'Badele', :path => '/path/to/sdks/mobile/ios'
+```
+
+The Flutter Swift package currently resolves the private iOS repository's
+authenticated `main` branch. Before public release, publish and tag the native
+SDK and change that dependency to `from: "0.1.0"`.
 
 The Android plugin depends on `io.badele:badele:0.1.0`, which is not published
 yet. Until it is, build the SDK's AAR into your local Maven repository:
@@ -165,4 +178,5 @@ yet. Until it is, build the SDK's AAR into your local Maven repository:
 cd ../android && ./gradlew :badele:publishToMavenLocal
 ```
 
-and add `mavenLocal()` to the host app's repositories.
+The plugin checks Maven Central first and Maven Local second, so no host-project
+repository override is required for this contributor workflow.

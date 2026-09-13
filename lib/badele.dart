@@ -18,7 +18,7 @@
 /// Native and native apps at the same time rather than three times over.
 ///
 /// ```dart
-/// import 'package:badele/badele.dart';
+/// import 'package:badele_flutter/badele.dart';
 ///
 /// final badele = await Badele.load(apiKey: 'pk_live_…');
 /// final result = await badele.identify(tag: 'checkout');
@@ -32,7 +32,8 @@ library badele;
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart';
 
 import 'src/types.dart';
@@ -60,8 +61,9 @@ const _channel = MethodChannel(_channelName);
 /// `dart:io` makes this library fail to compile for web — and a package that
 /// cannot be *imported* on a platform it does not support is worse than one
 /// that simply does nothing there.
-String _platformName() =>
-    defaultTargetPlatform == TargetPlatform.android ? 'flutter-android' : 'flutter-ios';
+String _platformName() => defaultTargetPlatform == TargetPlatform.android
+    ? 'flutter-android'
+    : 'flutter-ios';
 
 /// The message shown when the plugin is not registered.
 ///
@@ -144,7 +146,8 @@ class Badele {
 /// outcome for `configure` — and `T == void` is not something Dart's type
 /// system lets a single function ask about.
 Future<T> _invoke<T>(String method, [Map<String, dynamic>? arguments]) async {
-  final result = await _guard(() => _channel.invokeMethod<T>(method, arguments));
+  final result =
+      await _guard(() => _channel.invokeMethod<T>(method, arguments));
 
   if (result == null) {
     throw const BadeleException('The SDK produced no report');

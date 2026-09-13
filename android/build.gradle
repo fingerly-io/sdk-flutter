@@ -15,8 +15,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.11.1'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
+        classpath 'com.android.tools.build:gradle:9.1.0'
     }
 }
 
@@ -24,11 +23,14 @@ rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
+        // Used by contributors until io.badele:badele is published. Maven
+        // Central remains ahead of it, so released applications resolve the
+        // published artifact once it exists.
+        mavenLocal()
     }
 }
 
 apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace 'io.badele.sdk.flutter'
@@ -46,12 +48,17 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+    }
+}
+
+// AGP 9 compiles Kotlin directly. Applying the legacy Kotlin Gradle Plugin in
+// a Flutter plugin now produces a deprecation warning and will be rejected by
+// a future Flutter release.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
@@ -59,7 +66,7 @@ dependencies {
     // The SDK that does the collecting.
     //
     // Not published yet — see the note in the package README. Until it is, an
-    // app building this from the monorepo substitutes the local project with a
-    // `dependencySubstitution` block in its own settings file.
+    // app building this from the monorepo publishes the native SDK to its local
+    // Maven repository first, as documented in the package README.
     implementation 'io.badele:badele:0.1.0'
 }

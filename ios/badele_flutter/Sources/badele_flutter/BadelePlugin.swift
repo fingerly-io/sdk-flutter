@@ -2,26 +2,18 @@
 ///
 /// It does three things: hand the configuration to the native SDK, call it, and
 /// return the JSON it produced. There is deliberately no logic here at all —
-/// every decision about what to collect and how to weigh it lives in `Badele`,
-/// beside the React Native module's identical arrangement. A plugin that made
-/// judgements would be a fourth place to keep a rule in step.
+/// every decision about what to collect and how to weigh it lives in `Badele`.
 ///
-/// # Why the result crosses as a string
-///
-/// Flutter's standard method codec has its own idea of what a nested map is,
-/// and the report is a deep one — twenty sources, each with a value of a
-/// different shape. Marshalling it into the codec's types by hand would mean
-/// another mapping to keep in step with the wire format, and the wire format is
-/// JSON already. The Dart side parses it into the same classes a native app
-/// gets as Swift structs.
+/// The result crosses as JSON because Flutter's standard method codec has its
+/// own nested-map types, while JSON is already the native SDK's wire format.
 
 import Badele
 import Flutter
 import UIKit
 
 public class BadelePlugin: NSObject, FlutterPlugin {
-    /// Matches `_channelName` in `badele.dart`. A mismatch is not a compile
-    /// error in either language; it is a call that never arrives.
+    /// Matches `_channelName` in `badele.dart`. A mismatch is a call that never
+    /// arrives rather than a compile error.
     private static let channelName = "io.badele.sdk/flutter"
 
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -45,9 +37,6 @@ public class BadelePlugin: NSObject, FlutterPlugin {
         case "sdkVersion":
             result(BadeleBridge.sdkVersion)
         default:
-            // The channel is ours and every method on it is declared in
-            // `badele.dart`, so this is a Dart side newer than the native one —
-            // which `FlutterMethodNotImplemented` is exactly the answer for.
             result(FlutterMethodNotImplemented)
         }
     }
@@ -71,21 +60,16 @@ public class BadelePlugin: NSObject, FlutterPlugin {
 
         BadeleBridge.identify(
             tag: arguments["tag"] as? String,
-            // Defaulting to true: the Dart signature defaults to submitting, and
-            // an argument lost in transit must not silently turn a submission
-            // into a collection the caller then waits for a request id from.
+            // An argument lost in transit must not silently turn a submission
+            // into a collection the caller waits for a request id from.
             submit: arguments["submit"] as? Bool ?? true
         ) { json, error in
             Self.settle(json, error, result)
         }
     }
 
-    /// Deliver the answer on the platform thread.
-    ///
-    /// `FlutterResult` must be called on the platform thread, and the SDK's
-    /// completion runs on whatever cooperative thread finished the work.
-    /// Calling it from there is the kind of bug that works on a fast device and
-    /// crashes on a slow one.
+    /// Flutter results must be delivered on the platform thread; native
+    /// collection completes on whichever cooperative thread finished the work.
     private static func settle(
         _ json: String?,
         _ error: NSError?,
@@ -94,10 +78,8 @@ public class BadelePlugin: NSObject, FlutterPlugin {
         DispatchQueue.main.async {
             if let error {
                 result(FlutterError(
-                    // The HTTP status where there was one, as a string, so the
-                    // Dart side can parse it back into `BadeleException.status`
-                    // and a caller can tell 401 from 402 without reading a
-                    // message.
+                    // Native transport errors use the HTTP status as their
+                    // code, which Dart preserves on `BadeleException`.
                     code: "\(error.code)",
                     message: error.localizedDescription,
                     details: nil
