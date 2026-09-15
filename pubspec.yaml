@@ -1,10 +1,10 @@
-name: badele_flutter
+name: fingerly_flutter
 description: >-
   Device intelligence and fraud signals for Flutter. A binding to the native
   iOS and Android SDKs, which do the collecting.
 version: 0.1.0
-homepage: https://badele.io
-repository: https://github.com/badele-io/sdk-flutter
+homepage: https://fingerly.io
+repository: https://github.com/fingerly-io/sdk-flutter
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -23,8 +23,8 @@ flutter:
   plugin:
     platforms:
       ios:
-        pluginClass: BadelePlugin
+        pluginClass: FingerlyPlugin
         sharedDarwinSource: false
       android:
-        package: io.badele.sdk.flutter
-        pluginClass: BadelePlugin
+        package: io.fingerly.sdk.flutter
+        pluginClass: FingerlyPlugin

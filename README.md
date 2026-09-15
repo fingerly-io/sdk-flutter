@@ -1,11 +1,11 @@
-# Badele for Flutter
+# Fingerly for Flutter
 
-Flutter bindings for Badele. A binding to the native iOS and Android SDKs, which
+Flutter bindings for Fingerly. A binding to the native iOS and Android SDKs, which
 do the collecting.
 
 ```yaml
 dependencies:
-  badele_flutter: ^0.1.0
+  fingerly_flutter: ^0.1.0
 ```
 
 Requires Flutter **3.10** or newer, iOS **13** or newer.
@@ -13,10 +13,10 @@ Requires Flutter **3.10** or newer, iOS **13** or newer.
 ## Identify
 
 ```dart
-import 'package:badele_flutter/badele.dart';
+import 'package:fingerly_flutter/fingerly.dart';
 
-final badele = await Badele.load(apiKey: 'pk_live_…');
-final result = await badele.identify(tag: 'checkout');
+final fingerly = await Fingerly.load(apiKey: 'pk_live_…');
+final result = await fingerly.identify(tag: 'checkout');
 
 if (result.verdicts.jailbreak.value &&
     result.verdicts.jailbreak.confidence == Confidence.high) {
@@ -113,7 +113,7 @@ stored, the report looks full, and the signal never fires.
 ## Reading the report
 
 ```dart
-final report = await badele.collect();   // no submission
+final report = await fingerly.collect();   // no submission
 
 report.sources.forEach((id, outcome) {
   debugPrint('$id ${outcome.status.name} ${outcome.ms}ms ${outcome.reason ?? ''}');
@@ -126,13 +126,13 @@ returned, because `lstat` on a path does not fail unless something made it.
 
 ## Errors
 
-`identify()` throws `BadeleException`, whose `status` is the HTTP status where
+`identify()` throws `FingerlyException`, whose `status` is the HTTP status where
 there was one:
 
 ```dart
 try {
-  await badele.identify();
-} on BadeleException catch (error) {
+  await fingerly.identify();
+} on FingerlyException catch (error) {
   if (error.status == 401) { /* the key is wrong */ }
   if (error.status == 402) { /* the organisation is not accepting traffic */ }
 }
@@ -151,7 +151,7 @@ damage than the fraud it was looking for.
 Both platforms are implemented and compiled. The **iOS** plugin calls
 [`mobile/ios`](../ios) and the **Android** plugin calls
 [`mobile/android`](../android); each is a method-channel handler that forwards
-to that SDK's `BadeleBridge` and hops the result back to the platform thread.
+to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
 
 The Dart contract has bridge, decoding and error-shape tests. The iOS bridge is
 verified through both CocoaPods and Swift Package Manager, and has run on an
@@ -164,18 +164,18 @@ The native SDKs are not published yet. For a CocoaPods development build, point
 the host application's Podfile at the sibling iOS checkout:
 
 ```ruby
-pod 'Badele', :path => '/path/to/sdks/mobile/ios'
+pod 'Fingerly', :path => '/path/to/sdks/mobile/ios'
 ```
 
 The Flutter Swift package currently resolves the private iOS repository's
 authenticated `main` branch. Before public release, publish and tag the native
 SDK and change that dependency to `from: "0.1.0"`.
 
-The Android plugin depends on `io.badele:badele:0.1.0`, which is not published
+The Android plugin depends on `io.fingerly:fingerly:0.1.0`, which is not published
 yet. Until it is, build the SDK's AAR into your local Maven repository:
 
 ```
-cd ../android && ./gradlew :badele:publishToMavenLocal
+cd ../android && ./gradlew :fingerly:publishToMavenLocal
 ```
 
 The plugin checks Maven Central first and Maven Local second, so no host-project

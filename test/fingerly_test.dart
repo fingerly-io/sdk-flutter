@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:badele_flutter/badele.dart';
+import 'package:fingerly_flutter/fingerly.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _channel = MethodChannel('io.badele.sdk/flutter');
+const _channel = MethodChannel('io.fingerly.sdk/flutter');
 
 Map<String, Object?> _report() => {
       'schema': 1,
@@ -79,7 +79,7 @@ void main() {
       return null;
     });
 
-    await Badele.load(
+    await Fingerly.load(
         apiKey: 'pk_test_mobile', endpoint: 'http://localhost:9000');
 
     expect(received?.method, 'configure');
@@ -99,7 +99,7 @@ void main() {
       return jsonEncode(_identifyResult());
     });
 
-    final client = await Badele.load(apiKey: 'pk_test_mobile');
+    final client = await Fingerly.load(apiKey: 'pk_test_mobile');
     final result = await client.identify(tag: 'checkout');
 
     expect(result.requestId, 'req_123');
@@ -124,12 +124,12 @@ void main() {
               _ => throw MissingPluginException(),
             });
 
-    final client = await Badele.load(apiKey: 'pk_test_mobile');
+    final client = await Fingerly.load(apiKey: 'pk_test_mobile');
     final report = await client.collect();
 
     expect(report.schema, 1);
     expect(report.elapsedMs, 42);
-    expect(await Badele.nativeVersion(), '0.1.0');
+    expect(await Fingerly.nativeVersion(), '0.1.0');
   });
 
   test('platform failures preserve the HTTP status', () async {
@@ -139,16 +139,16 @@ void main() {
     );
 
     await expectLater(
-      Badele.load(apiKey: 'pk_test_mobile'),
+      Fingerly.load(apiKey: 'pk_test_mobile'),
       throwsA(
-        isA<BadeleException>()
+        isA<FingerlyException>()
             .having((error) => error.status, 'status', 402)
             .having((error) => error.message, 'message', 'disabled'),
       ),
     );
   });
 
-  test('a missing native plugin becomes an actionable BadeleException',
+  test('a missing native plugin becomes an actionable FingerlyException',
       () async {
     messenger.setMockMethodCallHandler(
       _channel,
@@ -156,9 +156,9 @@ void main() {
     );
 
     await expectLater(
-      Badele.nativeVersion(),
+      Fingerly.nativeVersion(),
       throwsA(
-        isA<BadeleException>().having(
+        isA<FingerlyException>().having(
           (error) => error.message,
           'message',
           contains('flutter clean'),

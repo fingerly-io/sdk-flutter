@@ -3,10 +3,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "badele_flutter",
+    name: "fingerly_flutter",
     platforms: [.iOS(.v13)],
     products: [
-        .library(name: "badele-flutter", targets: ["badele_flutter"]),
+        .library(name: "fingerly-flutter", targets: ["fingerly_flutter"]),
     ],
     dependencies: [
         // Flutter creates this package beside every plugin package while
@@ -15,19 +15,19 @@ let package = Package(
         // The repository is private and untagged today, so development uses
         // its authenticated main branch. Replace this with `from: "0.1.0"`
         // when the native SDK is published; CocoaPods has the same release
-        // boundary through the `Badele` dependency below.
+        // boundary through the `Fingerly` dependency below.
         .package(
-            name: "Badele",
-            url: "ssh://git@github.com/badele-io/sdk-ios.git",
+            name: "Fingerly",
+            url: "ssh://git@github.com/fingerly-io/sdk-ios.git",
             branch: "main"
         ),
     ],
     targets: [
         .target(
-            name: "badele_flutter",
+            name: "fingerly_flutter",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
-                .product(name: "Badele", package: "Badele"),
+                .product(name: "Fingerly", package: "Fingerly"),
             ]
         ),
     ]

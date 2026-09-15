@@ -2,26 +2,26 @@
 ///
 /// It does three things: hand the configuration to the native SDK, call it, and
 /// return the JSON it produced. There is deliberately no logic here at all —
-/// every decision about what to collect and how to weigh it lives in `Badele`.
+/// every decision about what to collect and how to weigh it lives in `Fingerly`.
 ///
 /// The result crosses as JSON because Flutter's standard method codec has its
 /// own nested-map types, while JSON is already the native SDK's wire format.
 
-import Badele
+import Fingerly
 import Flutter
 import UIKit
 
-public class BadelePlugin: NSObject, FlutterPlugin {
-    /// Matches `_channelName` in `badele.dart`. A mismatch is a call that never
+public class FingerlyPlugin: NSObject, FlutterPlugin {
+    /// Matches `_channelName` in `fingerly.dart`. A mismatch is a call that never
     /// arrives rather than a compile error.
-    private static let channelName = "io.badele.sdk/flutter"
+    private static let channelName = "io.fingerly.sdk/flutter"
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: channelName,
             binaryMessenger: registrar.messenger()
         )
-        registrar.addMethodCallDelegate(BadelePlugin(), channel: channel)
+        registrar.addMethodCallDelegate(FingerlyPlugin(), channel: channel)
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -31,11 +31,11 @@ public class BadelePlugin: NSObject, FlutterPlugin {
         case "identify":
             identify(call, result)
         case "collect":
-            BadeleBridge.collect { json, error in
+            FingerlyBridge.collect { json, error in
                 Self.settle(json, error, result)
             }
         case "sdkVersion":
-            result(BadeleBridge.sdkVersion)
+            result(FingerlyBridge.sdkVersion)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -47,7 +47,7 @@ public class BadelePlugin: NSObject, FlutterPlugin {
             return
         }
 
-        BadeleBridge.configure(
+        FingerlyBridge.configure(
             apiKey: arguments["apiKey"] as? String ?? "",
             endpoint: arguments["endpoint"] as? String ?? "",
             platform: arguments["platform"] as? String ?? "flutter-ios"
@@ -58,7 +58,7 @@ public class BadelePlugin: NSObject, FlutterPlugin {
     private func identify(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
         let arguments = call.arguments as? [String: Any] ?? [:]
 
-        BadeleBridge.identify(
+        FingerlyBridge.identify(
             tag: arguments["tag"] as? String,
             // An argument lost in transit must not silently turn a submission
             // into a collection the caller waits for a request id from.
@@ -79,7 +79,7 @@ public class BadelePlugin: NSObject, FlutterPlugin {
             if let error {
                 result(FlutterError(
                     // Native transport errors use the HTTP status as their
-                    // code, which Dart preserves on `BadeleException`.
+                    // code, which Dart preserves on `FingerlyException`.
                     code: "\(error.code)",
                     message: error.localizedDescription,
                     details: nil

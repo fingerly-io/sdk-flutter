@@ -1,6 +1,6 @@
 /// The shapes the native SDKs report in, as Dart.
 ///
-/// A port of `@badele/core`'s `types.ts`, the same way `Types.swift` is. Where
+/// A port of `@fingerly/core`'s `types.ts`, the same way `Types.swift` is. Where
 /// the three differ, the JSON is the thing that has to match and the Dart
 /// naming is allowed to be Dart.
 ///
@@ -400,8 +400,8 @@ class IdentifyResult {
 }
 
 /// A failure the caller can act on.
-class BadeleException implements Exception {
-  const BadeleException(this.message, {this.status});
+class FingerlyException implements Exception {
+  const FingerlyException(this.message, {this.status});
 
   final String message;
 
@@ -413,6 +413,6 @@ class BadeleException implements Exception {
 
   @override
   String toString() => status == null
-      ? 'BadeleException: $message'
-      : 'BadeleException($status): $message';
+      ? 'FingerlyException: $message'
+      : 'FingerlyException($status): $message';
 }

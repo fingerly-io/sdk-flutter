@@ -6,7 +6,7 @@
 // apps by bumping one dependency rather than by porting the fix a second time.
 // The iOS podspec beside it says the same thing about `mobile/ios`.
 
-group 'io.badele.sdk.flutter'
+group 'io.fingerly.sdk.flutter'
 version '0.1.0'
 
 buildscript {
@@ -23,7 +23,7 @@ rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
-        // Used by contributors until io.badele:badele is published. Maven
+        // Used by contributors until io.fingerly:fingerly is published. Maven
         // Central remains ahead of it, so released applications resolve the
         // published artifact once it exists.
         mavenLocal()
@@ -33,7 +33,7 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
-    namespace 'io.badele.sdk.flutter'
+    namespace 'io.fingerly.sdk.flutter'
     compileSdk 36
 
     defaultConfig {
@@ -68,5 +68,5 @@ dependencies {
     // Not published yet — see the note in the package README. Until it is, an
     // app building this from the monorepo publishes the native SDK to its local
     // Maven repository first, as documented in the package README.
-    implementation 'io.badele:badele:0.1.0'
+    implementation 'io.fingerly:fingerly:0.1.0'
 }

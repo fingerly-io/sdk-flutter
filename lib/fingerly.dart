@@ -1,4 +1,4 @@
-/// Badele for Flutter.
+/// Fingerly for Flutter.
 ///
 /// # This package collects nothing
 ///
@@ -18,17 +18,17 @@
 /// Native and native apps at the same time rather than three times over.
 ///
 /// ```dart
-/// import 'package:badele_flutter/badele.dart';
+/// import 'package:fingerly_flutter/fingerly.dart';
 ///
-/// final badele = await Badele.load(apiKey: 'pk_live_…');
-/// final result = await badele.identify(tag: 'checkout');
+/// final fingerly = await Fingerly.load(apiKey: 'pk_live_…');
+/// final result = await fingerly.identify(tag: 'checkout');
 ///
 /// if (result.verdicts.jailbreak.value &&
 ///     result.verdicts.jailbreak.confidence == Confidence.high) {
 ///   // step up to a challenge
 /// }
 /// ```
-library badele;
+library fingerly;
 
 import 'dart:convert';
 
@@ -40,10 +40,10 @@ import 'src/types.dart';
 
 export 'src/types.dart';
 
-/// The channel name. Matches `BadelePlugin.swift` and the Kotlin equivalent;
+/// The channel name. Matches `FingerlyPlugin.swift` and the Kotlin equivalent;
 /// a mismatch is a call that never arrives rather than a compile error, which
 /// is why it is a constant in one place rather than a literal in three.
-const _channelName = 'io.badele.sdk/flutter';
+const _channelName = 'io.fingerly.sdk/flutter';
 
 const _channel = MethodChannel(_channelName);
 
@@ -71,13 +71,13 @@ String _platformName() => defaultTargetPlatform == TargetPlatform.android
 /// integration hits first and `MissingPluginException` tells nobody what to do
 /// about it.
 const _missingPlugin =
-    'The badele plugin is not registered on this platform. Run `flutter clean` '
+    'The fingerly plugin is not registered on this platform. Run `flutter clean` '
     'and rebuild — this package cannot collect anything without the native SDK, '
     'and collecting a subset from Dart would report a compromised device as clean.';
 
 /// A configured client.
-class Badele {
-  const Badele._();
+class Fingerly {
+  const Fingerly._();
 
   /// Configure the SDK and return a client.
   ///
@@ -85,7 +85,7 @@ class Badele {
   /// a shipped binary — it is scoped to the app identifiers you list. A secret
   /// key is refused when it arrives from a client, so pasting one in does not
   /// work by design.
-  static Future<Badele> load({
+  static Future<Fingerly> load({
     required String apiKey,
     String endpoint = '',
   }) async {
@@ -98,7 +98,7 @@ class Badele {
       'platform': _platformName(),
     });
 
-    return const Badele._();
+    return const Fingerly._();
   }
 
   /// Collect, score on the device, and submit.
@@ -150,7 +150,7 @@ Future<T> _invoke<T>(String method, [Map<String, dynamic>? arguments]) async {
       await _guard(() => _channel.invokeMethod<T>(method, arguments));
 
   if (result == null) {
-    throw const BadeleException('The SDK produced no report');
+    throw const FingerlyException('The SDK produced no report');
   }
   return result;
 }
@@ -164,12 +164,12 @@ Future<R?> _guard<R>(Future<R?> Function() body) async {
   try {
     return await body();
   } on MissingPluginException {
-    throw const BadeleException(_missingPlugin);
+    throw const FingerlyException(_missingPlugin);
   } on PlatformException catch (error) {
     // The native bridges set the error code to the HTTP status where there was
     // one, so a caller can tell a wrong key from an exhausted account without
     // parsing a message.
-    throw BadeleException(
+    throw FingerlyException(
       error.message ?? 'The submission could not be sent',
       status: int.tryParse(error.code),
     );

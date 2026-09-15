@@ -1,10 +1,10 @@
-package io.badele.sdk.flutter
+package io.fingerly.sdk.flutter
 
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import io.badele.sdk.bridge.BadeleBridge
-import io.badele.sdk.bridge.BridgeCallback
+import io.fingerly.sdk.bridge.FingerlyBridge
+import io.fingerly.sdk.bridge.BridgeCallback
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -29,7 +29,7 @@ import io.flutter.plugin.common.MethodChannel.Result
  * JSON already. The Dart side parses it into the same classes a native app gets
  * as Kotlin data classes.
  */
-class BadelePlugin : FlutterPlugin, MethodCallHandler {
+class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
 
     private var channel: MethodChannel? = null
     private var context: Context? = null
@@ -48,7 +48,7 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME).apply {
-            setMethodCallHandler(this@BadelePlugin)
+            setMethodCallHandler(this@FingerlyPlugin)
         }
     }
 
@@ -62,10 +62,10 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
         when (call.method) {
             "configure" -> configure(call, result)
             "identify" -> identify(call, result)
-            "collect" -> BadeleBridge.collect(settle(result))
-            "sdkVersion" -> result.success(BadeleBridge.sdkVersion())
+            "collect" -> FingerlyBridge.collect(settle(result))
+            "sdkVersion" -> result.success(FingerlyBridge.sdkVersion())
             // The channel is ours and every method on it is declared in
-            // `badele.dart`, so this is a Dart side newer than the native one —
+            // `fingerly.dart`, so this is a Dart side newer than the native one —
             // which `notImplemented` is exactly the answer for.
             else -> result.notImplemented()
         }
@@ -74,11 +74,11 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
     private fun configure(call: MethodCall, result: Result) {
         val context = this.context
         if (context == null) {
-            result.error("-1", "Badele was configured before the plugin attached to an engine", null)
+            result.error("-1", "Fingerly was configured before the plugin attached to an engine", null)
             return
         }
 
-        BadeleBridge.configure(
+        FingerlyBridge.configure(
             context = context,
             apiKey = call.argument<String>("apiKey") ?: "",
             endpoint = call.argument<String>("endpoint") ?: "",
@@ -88,7 +88,7 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
     }
 
     private fun identify(call: MethodCall, result: Result) {
-        BadeleBridge.identify(
+        FingerlyBridge.identify(
             tag = call.argument<String>("tag"),
             // Defaulting to true: the Dart signature defaults to submitting, and
             // an argument lost in transit must not silently turn a submission
@@ -105,7 +105,7 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
 
         override fun onError(code: String, message: String) {
             // The HTTP status where there was one, as a string, so the Dart
-            // side can parse it back into `BadeleException.status` and a caller
+            // side can parse it back into `FingerlyException.status` and a caller
             // can tell 401 from 402 without reading a message.
             platformThread.post { result.error(code, message, null) }
         }
@@ -113,10 +113,10 @@ class BadelePlugin : FlutterPlugin, MethodCallHandler {
 
     private companion object {
         /**
-         * Matches `_channelName` in `badele.dart` and the iOS plugin's own
+         * Matches `_channelName` in `fingerly.dart` and the iOS plugin's own
          * constant. A mismatch is not a compile error in any of the three
          * languages; it is a call that never arrives.
          */
-        const val CHANNEL_NAME = "io.badele.sdk/flutter"
+        const val CHANNEL_NAME = "io.fingerly.sdk/flutter"
     }
 }
