@@ -36,6 +36,28 @@ enum SignalStatus {
       };
 }
 
+/// Whether the user has agreed to be identified.
+///
+/// Spelled as the other Fingerly SDKs spell it, and sent across the channel by
+/// [name]. [granted] is the default, which is how every integration written
+/// before consent existed behaves. [pending] and [denied] mean the same thing
+/// to the SDK (run no source, send nothing, throw
+/// [FingerlyConsentException]) and are kept apart because a consent tool
+/// reports them apart.
+enum ConsentState {
+  granted,
+  pending,
+  denied;
+
+  /// The state a native bridge named, or null when it named none of the three.
+  static ConsentState? tryParse(Object? value) => switch (value) {
+        'granted' => ConsentState.granted,
+        'pending' => ConsentState.pending,
+        'denied' => ConsentState.denied,
+        _ => null,
+      };
+}
+
 /// How sure a verdict is.
 enum Confidence {
   low,
@@ -415,4 +437,34 @@ class FingerlyException implements Exception {
   String toString() => status == null
       ? 'FingerlyException: $message'
       : 'FingerlyException($status): $message';
+}
+
+/// A call refused because consent is not [ConsentState.granted].
+///
+/// Nothing was collected and nothing was sent: the native SDK refuses before
+/// its first source runs, and a call already in flight when consent is
+/// withdrawn refuses before it submits. The same call succeeds once the app
+/// calls `setConsent(ConsentState.granted)`, so this is not one to retry.
+///
+/// A [FingerlyException] as well, so an existing `on FingerlyException`
+/// handler keeps catching everything this package throws.
+class FingerlyConsentException extends FingerlyException {
+  FingerlyConsentException(this.state)
+      : super(
+          'Fingerly needs consent before it can identify this visitor '
+          '(consent is ${state.name})',
+        );
+
+  /// The string every Fingerly SDK and bridge uses for this failure.
+  static const String consentRequired = 'consent_required';
+
+  /// The state that refused the call: [ConsentState.pending] or
+  /// [ConsentState.denied].
+  final ConsentState state;
+
+  /// Always `consent_required`, matching the other SDKs.
+  String get code => consentRequired;
+
+  @override
+  String toString() => 'FingerlyConsentException: $message';
 }

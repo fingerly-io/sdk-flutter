@@ -28,6 +28,12 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
         switch call.method {
         case "configure":
             configure(call, result)
+        case "setConsent":
+            // Anything missing or unrecognised reaches the bridge as a string
+            // it does not know, which it reads as `pending`.
+            let arguments = call.arguments as? [String: Any] ?? [:]
+            FingerlyBridge.setConsent(arguments["state"] as? String ?? "")
+            result(nil)
         case "identify":
             identify(call, result)
         case "collect":
@@ -50,7 +56,10 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
         FingerlyBridge.configure(
             apiKey: arguments["apiKey"] as? String ?? "",
             endpoint: arguments["endpoint"] as? String ?? "",
-            platform: arguments["platform"] as? String ?? "flutter-ios"
+            platform: arguments["platform"] as? String ?? "flutter-ios",
+            // `fingerly.dart` always sends it, `granted` unless the app asked
+            // for another state; the fallback is that same Dart default.
+            consent: arguments["consent"] as? String ?? "granted"
         )
         result(nil)
     }
@@ -77,12 +86,16 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
     ) {
         DispatchQueue.main.async {
             if let error {
+                // A refusal for want of consent carries its string code
+                // (`consent_required`) and the refusing state in `userInfo`,
+                // which Dart turns into `FingerlyConsentException`.
+                let state = error.userInfo["state"] as? String
                 result(FlutterError(
                     // Native transport errors use the HTTP status as their
                     // code, which Dart preserves on `FingerlyException`.
-                    code: "\(error.code)",
+                    code: error.userInfo["code"] as? String ?? "\(error.code)",
                     message: error.localizedDescription,
-                    details: nil
+                    details: state.map { ["state": $0] }
                 ))
                 return
             }

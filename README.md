@@ -15,7 +15,7 @@ Requires Flutter **3.10** or newer, iOS **13** or newer.
 ```dart
 import 'package:fingerly_flutter/fingerly.dart';
 
-final fingerly = await Fingerly.load(apiKey: 'pk_live_…');
+final fingerly = await Fingerly.load(apiKey: 'fly_pk_us_production_…');
 final result = await fingerly.identify(tag: 'checkout');
 
 if (result.verdicts.jailbreak.value &&
@@ -37,6 +37,63 @@ control**, and an app that branches on it locally is an app whose branch can be
 patched out.
 
 Pass `submit: false` to collect and score without sending anything.
+
+## Consent
+
+If your legal basis for identifying users is consent (ePrivacy, GDPR), load the
+SDK with `consent: ConsentState.pending` and pass on the answer from your
+consent tool when it arrives:
+
+```dart
+final fingerly = await Fingerly.load(
+  apiKey: 'fly_pk_us_production_…',
+  consent: ConsentState.pending,
+);
+
+// From your consent tool's callback:
+await fingerly.setConsent(
+  accepted ? ConsentState.granted : ConsentState.denied,
+);
+
+fingerly.consent; // granted, pending or denied
+```
+
+| Option / method | What it does |
+| --- | --- |
+| `consent:` on `Fingerly.load` | The starting state: `ConsentState.granted` (the default), `pending` or `denied`. |
+| `setConsent(state)` | Records the decision. Safe to call repeatedly. |
+| `consent` | The state last given to the native SDK, read-only. |
+
+The default is `granted`, so an integration that never mentions consent behaves
+exactly as before.
+
+`setConsent` changes `consent` straight away, and the native SDK receives
+changes in the order they were made, so an `identify()` started after it sees
+the new state even if the returned future was not awaited. Await it to hear
+about a failure.
+
+While the state is anything else, the native SDK runs no source, reads and
+writes no keychain entry or preference for fingerprinting, and sends nothing.
+`identify()` and `collect()` throw `FingerlyConsentException`, whose `code` is
+`consent_required` and whose `state` says which state refused the call:
+
+```dart
+try {
+  await fingerly.identify();
+} on FingerlyConsentException catch (error) {
+  // error.state is pending or denied; nothing was collected or sent
+}
+```
+
+A change applies to calls already in flight as well as later ones. Consent
+withdrawn halfway through an `identify()` stops it before the next source
+starts and before anything is submitted, and that call throws
+`FingerlyConsentException`.
+
+Loading collects and sends nothing, whatever the state, so calling
+`Fingerly.load` at launch before the user has been asked is safe. The native SDK
+holds one state for the whole app: each `load` sets it to the `consent` passed,
+or `granted` when there is none, so pass `consent` on every `load`.
 
 ## This package collects nothing
 
@@ -141,6 +198,11 @@ try {
 Both are your configuration rather than the user's behaviour, and neither is
 worth retrying. The native SDK retries the ones that are (429 and 5xx) with
 full-jitter backoff before it ever throws.
+
+A call refused for want of consent throws `FingerlyConsentException`, a
+subclass of `FingerlyException` with `code` `consent_required`, a `state`, and
+no `status`. Catch it before `FingerlyException`, and answer it with
+`setConsent` rather than a retry. See [Consent](#consent).
 
 Everything parses defensively: a missing field produces a missing value rather
 than an exception. A fraud SDK that throws during a checkout has done more

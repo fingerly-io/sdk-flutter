@@ -20,7 +20,7 @@
 /// ```dart
 /// import 'package:fingerly_flutter/fingerly.dart';
 ///
-/// final fingerly = await Fingerly.load(apiKey: 'pk_live_…');
+/// final fingerly = await Fingerly.load(apiKey: 'fly_pk_us_production_…');
 /// final result = await fingerly.identify(tag: 'checkout');
 ///
 /// if (result.verdicts.jailbreak.value &&
@@ -75,6 +75,13 @@ const _missingPlugin =
     'and rebuild — this package cannot collect anything without the native SDK, '
     'and collecting a subset from Dart would report a compromised device as clean.';
 
+/// The consent this package last handed to the native SDK.
+///
+/// Library state rather than a field, because the native bridge keeps one
+/// client per process: every [Fingerly] talks to it, and a second
+/// [Fingerly.load] changes the state for all of them.
+ConsentState _consent = ConsentState.granted;
+
 /// A configured client.
 class Fingerly {
   const Fingerly._();
@@ -85,9 +92,16 @@ class Fingerly {
   /// a shipped binary — it is scoped to the app identifiers you list. A secret
   /// key is refused when it arrives from a client, so pasting one in does not
   /// work by design.
+  ///
+  /// [consent] is the state to start from, [ConsentState.granted] by default.
+  /// An app whose legal basis for identifying users is consent passes
+  /// [ConsentState.pending] and calls [setConsent] once its consent tool has
+  /// an answer. Loading collects and sends nothing, whatever the consent, and
+  /// the state passed here replaces whatever the native SDK held before.
   static Future<Fingerly> load({
     required String apiKey,
     String endpoint = '',
+    ConsentState consent = ConsentState.granted,
   }) async {
     await _invokeVoid('configure', {
       'apiKey': apiKey,
@@ -96,9 +110,27 @@ class Fingerly {
       // argument check rather than falling back.
       'endpoint': endpoint,
       'platform': _platformName(),
+      'consent': consent.name,
     });
 
+    _consent = consent;
     return const Fingerly._();
+  }
+
+  /// The consent last given to the native SDK, by [load] or [setConsent].
+  ConsentState get consent => _consent;
+
+  /// Record the user's answer, as the consent tool reports it.
+  ///
+  /// Safe to repeat. [consent] changes straight away and the native SDK is
+  /// told in the order calls were made, so an [identify] started after this
+  /// call sees the new state whether or not the returned future was awaited.
+  /// It also applies to a call already in flight: withdrawing consent stops a
+  /// running [identify] before it starts another source or submits, and that
+  /// call throws [FingerlyConsentException].
+  Future<void> setConsent(ConsentState state) {
+    _consent = state;
+    return _invokeVoid('setConsent', {'state': state.name});
   }
 
   /// Collect, score on the device, and submit.
@@ -112,6 +144,8 @@ class Fingerly {
   /// server's fields come back empty then, and [IdentifyResult.suspectScore]
   /// stays null rather than 0 — nobody scored it, which is not the same as
   /// scoring it and finding nothing.
+  ///
+  /// Throws [FingerlyConsentException] while consent is not granted.
   Future<IdentifyResult> identify({String? tag, bool submit = true}) async {
     final raw = await _invoke<String>('identify', {
       'tag': tag,
@@ -126,7 +160,8 @@ class Fingerly {
   /// Run the sources and assemble the report, without submitting.
   ///
   /// Useful on its own: a debug screen, or seeing exactly what would be sent
-  /// before agreeing to send it. Needs no key.
+  /// before agreeing to send it. Needs no key, but does need consent: throws
+  /// [FingerlyConsentException] without it.
   Future<SignalReport> collect() async {
     final raw = await _invoke<String>('collect');
 
@@ -166,6 +201,10 @@ Future<R?> _guard<R>(Future<R?> Function() body) async {
   } on MissingPluginException {
     throw const FingerlyException(_missingPlugin);
   } on PlatformException catch (error) {
+    if (error.code == FingerlyConsentException.consentRequired) {
+      throw FingerlyConsentException(_refusedConsent(error));
+    }
+
     // The native bridges set the error code to the HTTP status where there was
     // one, so a caller can tell a wrong key from an exhausted account without
     // parsing a message.
@@ -174,4 +213,20 @@ Future<R?> _guard<R>(Future<R?> Function() body) async {
       status: int.tryParse(error.code),
     );
   }
+}
+
+/// The state behind a native `consent_required` refusal.
+///
+/// The iOS plugin sends it in `details`. The Android plugin sends a code and a
+/// message only, and the message ends with the state in a fixed form. Anything
+/// unreadable is [ConsentState.pending], which is what the native SDKs read an
+/// unknown state as.
+ConsentState _refusedConsent(PlatformException error) {
+  final details = error.details;
+  final fromDetails =
+      details is Map ? ConsentState.tryParse(details['state']) : null;
+  if (fromDetails != null) return fromDetails;
+
+  final match = RegExp(r'\(consent is (\w+)\)').firstMatch(error.message ?? '');
+  return ConsentState.tryParse(match?.group(1)) ?? ConsentState.pending;
 }

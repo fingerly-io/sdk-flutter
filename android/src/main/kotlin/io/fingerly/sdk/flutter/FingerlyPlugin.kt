@@ -61,6 +61,11 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "configure" -> configure(call, result)
+            "setConsent" -> {
+                // Null or unrecognised is read as `pending` by the bridge.
+                FingerlyBridge.setConsent(call.argument<String>("state"))
+                result.success(null)
+            }
             "identify" -> identify(call, result)
             "collect" -> FingerlyBridge.collect(settle(result))
             "sdkVersion" -> result.success(FingerlyBridge.sdkVersion())
@@ -83,6 +88,9 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             apiKey = call.argument<String>("apiKey") ?: "",
             endpoint = call.argument<String>("endpoint") ?: "",
             platform = call.argument<String>("platform") ?: "flutter-android",
+            // `fingerly.dart` always sends it, `granted` unless the app asked
+            // for another state; the fallback is that same Dart default.
+            consent = call.argument<String>("consent") ?: "granted",
         )
         result.success(null)
     }
@@ -106,7 +114,9 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
         override fun onError(code: String, message: String) {
             // The HTTP status where there was one, as a string, so the Dart
             // side can parse it back into `FingerlyException.status` and a caller
-            // can tell 401 from 402 without reading a message.
+            // can tell 401 from 402 without reading a message. A refusal for
+            // want of consent arrives as `consent_required`, which Dart turns
+            // into `FingerlyConsentException`.
             platformThread.post { result.error(code, message, null) }
         }
     }
