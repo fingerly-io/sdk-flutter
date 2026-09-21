@@ -15,7 +15,7 @@ Requires Flutter **3.10** or newer, iOS **13** or newer.
 ```dart
 import 'package:fingerly_flutter/fingerly.dart';
 
-final fingerly = await Fingerly.load(apiKey: 'fly_pk_us_production_…');
+final fingerly = await Fingerly.load(apiKey: 'fly_pk_production_…');
 final result = await fingerly.identify(tag: 'checkout');
 
 if (result.verdicts.jailbreak.value &&
@@ -46,7 +46,7 @@ consent tool when it arrives:
 
 ```dart
 final fingerly = await Fingerly.load(
-  apiKey: 'fly_pk_us_production_…',
+  apiKey: 'fly_pk_production_…',
   consent: ConsentState.pending,
 );
 
