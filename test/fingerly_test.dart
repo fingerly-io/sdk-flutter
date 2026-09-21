@@ -80,11 +80,11 @@ void main() {
     });
 
     await Fingerly.load(
-        apiKey: 'fly_pk_us_development_mobile', endpoint: 'http://localhost:9000');
+        apiKey: 'fly_pk_development_mobile', endpoint: 'http://localhost:9000');
 
     expect(received?.method, 'configure');
     expect(received?.arguments, {
-      'apiKey': 'fly_pk_us_development_mobile',
+      'apiKey': 'fly_pk_development_mobile',
       'endpoint': 'http://localhost:9000',
       'platform': 'flutter-ios',
       'consent': 'granted',
@@ -134,7 +134,7 @@ void main() {
     test('defaults to granted and identifies as before', () async {
       final calls = installGatedNative();
 
-      final client = await Fingerly.load(apiKey: 'fly_pk_us_development_mobile');
+      final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
       final result = await client.identify();
 
       expect(calls.first.arguments['consent'], 'granted');
@@ -148,7 +148,7 @@ void main() {
         final calls = installGatedNative();
 
         final client =
-            await Fingerly.load(apiKey: 'fly_pk_us_development_mobile', consent: state);
+            await Fingerly.load(apiKey: 'fly_pk_development_mobile', consent: state);
 
         expect(calls.single.method, 'configure');
         expect(calls.single.arguments['consent'], state.name);
@@ -175,7 +175,7 @@ void main() {
         () async {
       final calls = installGatedNative();
       final client = await Fingerly.load(
-          apiKey: 'fly_pk_us_development_mobile', consent: ConsentState.pending);
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.pending);
 
       final pending = client.setConsent(ConsentState.denied);
       // Changed before the native side has answered.
@@ -195,7 +195,7 @@ void main() {
     test('identifies once consent is granted', () async {
       installGatedNative();
       final client = await Fingerly.load(
-          apiKey: 'fly_pk_us_development_mobile', consent: ConsentState.pending);
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.pending);
 
       await expectLater(
           client.identify(), throwsA(isA<FingerlyConsentException>()));
@@ -211,7 +211,7 @@ void main() {
         () async {
       installGatedNative(withDetails: false);
       final client = await Fingerly.load(
-          apiKey: 'fly_pk_us_development_mobile', consent: ConsentState.denied);
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.denied);
 
       await expectLater(
         client.collect(),
@@ -227,7 +227,7 @@ void main() {
             ? null
             : throw PlatformException(code: 'consent_required'),
       );
-      final client = await Fingerly.load(apiKey: 'fly_pk_us_development_mobile');
+      final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
 
       await expectLater(
         client.identify(),
@@ -249,7 +249,7 @@ void main() {
       return jsonEncode(_identifyResult());
     });
 
-    final client = await Fingerly.load(apiKey: 'fly_pk_us_development_mobile');
+    final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
     final result = await client.identify(tag: 'checkout');
 
     expect(result.requestId, 'req_123');
@@ -274,7 +274,7 @@ void main() {
               _ => throw MissingPluginException(),
             });
 
-    final client = await Fingerly.load(apiKey: 'fly_pk_us_development_mobile');
+    final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
     final report = await client.collect();
 
     expect(report.schema, 1);
@@ -289,7 +289,7 @@ void main() {
     );
 
     await expectLater(
-      Fingerly.load(apiKey: 'fly_pk_us_development_mobile'),
+      Fingerly.load(apiKey: 'fly_pk_development_mobile'),
       throwsA(
         isA<FingerlyException>()
             .having((error) => error.status, 'status', 402)
