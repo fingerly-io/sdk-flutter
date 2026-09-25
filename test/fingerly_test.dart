@@ -303,6 +303,58 @@ void main() {
     expect(await Fingerly.nativeVersion(), '0.1.0');
   });
 
+  group('deleteStoredIdentity', () {
+    test('asks the native SDK without load or consent', () async {
+      final calls = <String>[];
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        calls.add(call.method);
+        return null;
+      });
+
+      await Fingerly.deleteStoredIdentity();
+      expect(calls, ['deleteStoredIdentity']);
+    });
+
+    test('says so when the native SDK predates it', () async {
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (_) async => throw MissingPluginException(),
+      );
+
+      await expectLater(
+        Fingerly.deleteStoredIdentity(),
+        throwsA(
+          isA<FingerlyException>().having(
+            (error) => error.message,
+            'message',
+            contains('deleteStoredIdentity is not available'),
+          ),
+        ),
+      );
+    });
+
+    test('surfaces a failed delete as a FingerlyException', () async {
+      // Both plugins refuse with this code and message.
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (_) async => throw PlatformException(
+          code: 'delete_failed',
+          message: 'Fingerly could not delete its stored install record',
+        ),
+      );
+
+      await expectLater(
+        Fingerly.deleteStoredIdentity(),
+        throwsA(
+          isA<FingerlyException>()
+              .having((error) => error.message, 'message',
+                  'Fingerly could not delete its stored install record')
+              .having((error) => error.status, 'status', isNull),
+        ),
+      );
+    });
+  });
+
   test('platform failures preserve the HTTP status', () async {
     messenger.setMockMethodCallHandler(
       _channel,

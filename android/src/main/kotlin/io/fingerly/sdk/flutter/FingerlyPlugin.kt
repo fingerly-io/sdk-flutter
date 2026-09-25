@@ -68,6 +68,7 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             }
             "identify" -> identify(call, result)
             "collect" -> FingerlyBridge.collect(settle(result))
+            "deleteStoredIdentity" -> deleteStoredIdentity(result)
             "sdkVersion" -> result.success(FingerlyBridge.sdkVersion())
             // The channel is ours and every method on it is declared in
             // `fingerly.dart`, so this is a Dart side newer than the native one —
@@ -93,6 +94,38 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             consent = call.argument<String>("consent") ?: "pending",
         )
         result.success(null)
+    }
+
+    /**
+     * Deletes the install record, for a user's erasure or account deletion.
+     *
+     * Needs neither `configure` nor consent, only a context. Done on a thread of
+     * its own because this method is called on the platform thread and the
+     * delete is disk I/O, which StrictMode rightly objects to there.
+     */
+    private fun deleteStoredIdentity(result: Result) {
+        val context = this.context
+        if (context == null) {
+            result.error("-1", "Fingerly was called before the plugin attached to an engine", null)
+            return
+        }
+
+        Thread {
+            val deleted = try {
+                FingerlyBridge.deleteStoredIdentity(context)
+            } catch (error: Throwable) {
+                false
+            }
+            platformThread.post {
+                // `delete_failed`, the code the iOS plugin uses for the same
+                // failure, so Dart handles both alike.
+                if (deleted) {
+                    result.success(null)
+                } else {
+                    result.error("delete_failed", "Fingerly could not delete its stored install record", null)
+                }
+            }
+        }.start()
     }
 
     private fun identify(call: MethodCall, result: Result) {

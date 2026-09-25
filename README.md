@@ -101,6 +101,20 @@ Every submission the native SDK sends carries the state it was collected under,
 `422 consent_required`. The native SDK only sends while consent is granted, so
 that refusal should never be seen.
 
+## Erasure
+
+```dart
+await Fingerly.deleteStoredIdentity();
+```
+
+Deletes the install record the native SDK keeps on the device, including the
+install ID the server recognises it by. Call it when a user asks for their data
+to be erased or deletes their account. It needs no `load` and no consent, and
+sends nothing, and completes once no record remains, including when there was
+none. It throws a `FingerlyException` when the delete fails. The next
+identification made with consent starts a new record; to stop identifying as
+well, set consent to `ConsentState.denied` first.
+
 ## This package collects nothing
 
 That is the design, not a limitation.

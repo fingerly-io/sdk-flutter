@@ -177,6 +177,35 @@ class Fingerly {
 
   /// The native SDK's version, which is the one that did the collecting.
   static Future<String> nativeVersion() => _invoke<String>('sdkVersion');
+
+  /// Delete the install record the native SDK keeps on the device.
+  ///
+  /// Call it when a user asks for their data to be erased or deletes their
+  /// account, so the device stops presenting the install ID the server knows
+  /// it by. Needs no [load] and no consent, and sends nothing. Completes once
+  /// no record remains, including when there was none. The next
+  /// identification made with consent starts a new record; to stop
+  /// identifying as well, set consent to [ConsentState.denied] first, because
+  /// a call already running may write a fresh record.
+  ///
+  /// Throws a [FingerlyException] when the delete fails, and when the native
+  /// SDK in the app predates this call.
+  static Future<void> deleteStoredIdentity() async {
+    try {
+      await _invokeVoid('deleteStoredIdentity');
+    } on FingerlyException catch (error) {
+      // The channel cannot tell a plugin that is not registered from one
+      // whose native SDK predates this method, and the second is the likelier
+      // cause here, so the message names both.
+      if (error.message == _missingPlugin) {
+        throw const FingerlyException(
+          'deleteStoredIdentity is not available in the native Fingerly SDK '
+          'on this platform, or the plugin is not registered',
+        );
+      }
+      rethrow;
+    }
+  }
 }
 
 /// Call the native side and insist on an answer.
