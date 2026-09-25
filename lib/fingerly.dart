@@ -21,6 +21,9 @@
 /// import 'package:fingerly_flutter/fingerly.dart';
 ///
 /// final fingerly = await Fingerly.load(apiKey: 'fly_pk_production_…');
+/// // From the consent tool, once the user has agreed (or another lawful basis
+/// // applies).
+/// await fingerly.setConsent(ConsentState.granted);
 /// final result = await fingerly.identify(tag: 'checkout');
 ///
 /// if (result.verdicts.jailbreak.value &&
@@ -80,7 +83,7 @@ const _missingPlugin =
 /// Library state rather than a field, because the native bridge keeps one
 /// client per process: every [Fingerly] talks to it, and a second
 /// [Fingerly.load] changes the state for all of them.
-ConsentState _consent = ConsentState.granted;
+ConsentState _consent = ConsentState.pending;
 
 /// A configured client.
 class Fingerly {
@@ -93,15 +96,17 @@ class Fingerly {
   /// key is refused when it arrives from a client, so pasting one in does not
   /// work by design.
   ///
-  /// [consent] is the state to start from, [ConsentState.granted] by default.
-  /// An app whose legal basis for identifying users is consent passes
-  /// [ConsentState.pending] and calls [setConsent] once its consent tool has
-  /// an answer. Loading collects and sends nothing, whatever the consent, and
-  /// the state passed here replaces whatever the native SDK held before.
+  /// [consent] is the state to start from, [ConsentState.pending] by default:
+  /// call [setConsent] once the app's consent tool has an answer, and until
+  /// it is [ConsentState.granted], [identify] and [collect] throw
+  /// [FingerlyConsentException]. Pass [ConsentState.granted] here only once
+  /// the user has agreed, or where another lawful basis applies. Loading
+  /// collects and sends nothing, whatever the consent, and the state passed
+  /// here replaces whatever the native SDK held before.
   static Future<Fingerly> load({
     required String apiKey,
     String endpoint = '',
-    ConsentState consent = ConsentState.granted,
+    ConsentState consent = ConsentState.pending,
   }) async {
     await _invokeVoid('configure', {
       'apiKey': apiKey,

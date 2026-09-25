@@ -39,8 +39,8 @@ enum SignalStatus {
 /// Whether the user has agreed to be identified.
 ///
 /// Spelled as the other Fingerly SDKs spell it, and sent across the channel by
-/// [name]. [granted] is the default, which is how every integration written
-/// before consent existed behaves. [pending] and [denied] mean the same thing
+/// [name]. [pending] is the default: the SDK identifies nobody until it is
+/// told [granted]. [pending] and [denied] mean the same thing
 /// to the SDK (run no source, send nothing, throw
 /// [FingerlyConsentException]) and are kept apart because a consent tool
 /// reports them apart.

@@ -87,7 +87,7 @@ void main() {
       'apiKey': 'fly_pk_development_mobile',
       'endpoint': 'http://localhost:9000',
       'platform': 'flutter-ios',
-      'consent': 'granted',
+      'consent': 'pending',
     });
   });
 
@@ -98,7 +98,7 @@ void main() {
     /// `details`; the Android plugin sends a code and a message only.
     List<MethodCall> installGatedNative({bool withDetails = true}) {
       final calls = <MethodCall>[];
-      var consent = 'granted';
+      var consent = 'pending';
 
       messenger.setMockMethodCallHandler(_channel, (call) async {
         calls.add(call);
@@ -106,7 +106,7 @@ void main() {
 
         switch (call.method) {
           case 'configure':
-            consent = arguments?['consent'] as String? ?? 'granted';
+            consent = arguments?['consent'] as String? ?? 'pending';
             return null;
           case 'setConsent':
             consent = arguments?['state'] as String? ?? 'pending';
@@ -131,10 +131,29 @@ void main() {
       return calls;
     }
 
-    test('defaults to granted and identifies as before', () async {
+    test('defaults to pending, so nothing is identified until granted',
+        () async {
       final calls = installGatedNative();
 
       final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+
+      expect(calls.first.arguments['consent'], 'pending');
+      expect(client.consent, ConsentState.pending);
+      await expectLater(
+        client.identify(),
+        throwsA(isA<FingerlyConsentException>()
+            .having((error) => error.code, 'code', 'consent_required')
+            .having((error) => error.state, 'state', ConsentState.pending)),
+      );
+      await expectLater(
+          client.collect(), throwsA(isA<FingerlyConsentException>()));
+    });
+
+    test('identifies when loaded with consent granted', () async {
+      final calls = installGatedNative();
+
+      final client = await Fingerly.load(
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
       final result = await client.identify();
 
       expect(calls.first.arguments['consent'], 'granted');
@@ -249,7 +268,8 @@ void main() {
       return jsonEncode(_identifyResult());
     });
 
-    final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+    final client = await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
     final result = await client.identify(tag: 'checkout');
 
     expect(result.requestId, 'req_123');
@@ -274,7 +294,8 @@ void main() {
               _ => throw MissingPluginException(),
             });
 
-    final client = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+    final client = await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
     final report = await client.collect();
 
     expect(report.schema, 1);

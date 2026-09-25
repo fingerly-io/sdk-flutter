@@ -57,9 +57,9 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
             apiKey: arguments["apiKey"] as? String ?? "",
             endpoint: arguments["endpoint"] as? String ?? "",
             platform: arguments["platform"] as? String ?? "flutter-ios",
-            // `fingerly.dart` always sends it, `granted` unless the app asked
+            // `fingerly.dart` always sends it, `pending` unless the app asked
             // for another state; the fallback is that same Dart default.
-            consent: arguments["consent"] as? String ?? "granted"
+            consent: arguments["consent"] as? String ?? "pending"
         )
         result(nil)
     }

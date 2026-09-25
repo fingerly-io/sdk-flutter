@@ -88,9 +88,9 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             apiKey = call.argument<String>("apiKey") ?: "",
             endpoint = call.argument<String>("endpoint") ?: "",
             platform = call.argument<String>("platform") ?: "flutter-android",
-            // `fingerly.dart` always sends it, `granted` unless the app asked
+            // `fingerly.dart` always sends it, `pending` unless the app asked
             // for another state; the fallback is that same Dart default.
-            consent = call.argument<String>("consent") ?: "granted",
+            consent = call.argument<String>("consent") ?: "pending",
         )
         result.success(null)
     }
