@@ -264,7 +264,8 @@ void main() {
     messenger.setMockMethodCallHandler(_channel, (call) async {
       if (call.method == 'configure') return null;
       expect(call.method, 'identify');
-      expect(call.arguments, {'tag': 'checkout', 'submit': true});
+      expect(call.arguments,
+          {'tag': 'checkout', 'submit': true, 'automatic': false});
       return jsonEncode(_identifyResult());
     });
 
@@ -281,6 +282,21 @@ void main() {
     expect(result.verdicts.jailbreak, same(Verdict.unknown));
     expect(result.report.sources['device']?.status, SignalStatus.ok);
     expect(result.report.sources['attest']?.reason, 'simulator');
+  });
+
+  test('identify forwards automatic', () async {
+    Object? arguments;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'configure') return null;
+      arguments = call.arguments;
+      return jsonEncode(_identifyResult());
+    });
+
+    final client = await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+    await client.identify(automatic: true);
+
+    expect(arguments, {'tag': null, 'submit': true, 'automatic': true});
   });
 
   test('collect and nativeVersion use their dedicated bridge methods',

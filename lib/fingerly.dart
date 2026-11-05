@@ -150,11 +150,23 @@ class Fingerly {
   /// stays null rather than 0 — nobody scored it, which is not the same as
   /// scoring it and finding nothing.
   ///
+  /// Pass `automatic: true` for a call the app makes on its own rather than
+  /// in answer to the user (on start, on a timer, on returning to the
+  /// foreground). An automatic call joins an identification already in
+  /// flight instead of starting another, and waits out a transient failure
+  /// instead of repeating it at once. On Android it is accepted and has no
+  /// effect until the native Android SDK supports it.
+  ///
   /// Throws [FingerlyConsentException] while consent is not granted.
-  Future<IdentifyResult> identify({String? tag, bool submit = true}) async {
+  Future<IdentifyResult> identify({
+    String? tag,
+    bool submit = true,
+    bool automatic = false,
+  }) async {
     final raw = await _invoke<String>('identify', {
       'tag': tag,
       'submit': submit,
+      'automatic': automatic,
     });
 
     return IdentifyResult.fromJson(_decode(raw));

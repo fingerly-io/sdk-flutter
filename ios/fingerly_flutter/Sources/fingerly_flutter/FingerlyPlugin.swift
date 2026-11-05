@@ -91,7 +91,10 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
             tag: arguments["tag"] as? String,
             // An argument lost in transit must not silently turn a submission
             // into a collection the caller waits for a request id from.
-            submit: arguments["submit"] as? Bool ?? true
+            submit: arguments["submit"] as? Bool ?? true,
+            // A call the app made on its own joins the identification in
+            // flight. Absent, from an older Dart side, it is a user's call.
+            automatic: arguments["automatic"] as? Bool ?? false
         ) { json, error in
             Self.settle(json, error, result)
         }

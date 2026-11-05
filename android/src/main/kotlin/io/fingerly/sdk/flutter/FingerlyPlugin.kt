@@ -135,6 +135,8 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             // an argument lost in transit must not silently turn a submission
             // into a collection the caller then waits for a request id from.
             submit = call.argument<Boolean>("submit") ?: true,
+            // `automatic` is not read: the native Android bridge has no such
+            // option yet, so every call is identified as a user's call.
             callback = settle(result),
         )
     }
