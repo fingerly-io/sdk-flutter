@@ -43,16 +43,24 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
         case "sdkVersion":
             result(FingerlyBridge.sdkVersion)
         case "deleteStoredIdentity":
-            // A keychain delete, synchronous and quick, so answered in place.
-            // A refusal arrives as `delete_failed`, as it does from Android.
-            if let error = FingerlyBridge.deleteStoredIdentity() {
-                result(FlutterError(
-                    code: error.userInfo["code"] as? String ?? "\(error.code)",
-                    message: error.localizedDescription,
-                    details: nil
-                ))
-            } else {
-                result(nil)
+            // A synchronous keychain delete, which is an IPC round trip to
+            // securityd and can stall, so it runs off the platform thread
+            // (this method is called on it) and answers back on it, as the
+            // Android plugin does with its file delete. A refusal arrives as
+            // `delete_failed`, as it does from Android.
+            DispatchQueue.global(qos: .userInitiated).async {
+                let error = FingerlyBridge.deleteStoredIdentity()
+                DispatchQueue.main.async {
+                    if let error {
+                        result(FlutterError(
+                            code: error.userInfo["code"] as? String ?? "\(error.code)",
+                            message: error.localizedDescription,
+                            details: nil
+                        ))
+                    } else {
+                        result(nil)
+                    }
+                }
             }
         default:
             result(FlutterMethodNotImplemented)
