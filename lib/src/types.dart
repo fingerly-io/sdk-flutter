@@ -11,6 +11,32 @@
 /// it was looking for.
 library;
 
+// Readers that check a member's type instead of casting it. `as String?` on a
+// member that arrived as a number throws a `TypeError` out of `identify()`
+// after the server has already answered, which is the exception the paragraph
+// above promises not to raise. A member of the wrong type reads as missing.
+
+Map<String, dynamic>? _map(Object? value) => value is Map<String, dynamic>
+    ? value
+    : value is Map
+        ? value.map((key, item) => MapEntry('$key', item))
+        : null;
+
+String? _string(Object? value) => value is String ? value : null;
+
+bool? _bool(Object? value) => value is bool ? value : null;
+
+int? _int(Object? value) =>
+    value is num && value.isFinite ? value.toInt() : null;
+
+List<String> _strings(Object? value) => value is List
+    ? value.whereType<String>().toList(growable: false)
+    : const <String>[];
+
+List<Map<String, dynamic>> _maps(Object? value) => value is List
+    ? value.map(_map).whereType<Map<String, dynamic>>().toList(growable: false)
+    : const <Map<String, dynamic>>[];
+
 /// How a source finished.
 ///
 /// Five values, never a hole. A device that lacks an API, a jailbreak that
@@ -95,9 +121,9 @@ class SignalOutcome {
 
   factory SignalOutcome.fromJson(Map<String, dynamic> json) => SignalOutcome(
         status: SignalStatus.parse(json['status']),
-        ms: (json['ms'] as num?)?.toInt() ?? 0,
-        value: json['value'] as Map<String, dynamic>?,
-        reason: json['reason'] as String?,
+        ms: _int(json['ms']) ?? 0,
+        value: _map(json['value']),
+        reason: _string(json['reason']),
       );
 }
 
@@ -133,9 +159,9 @@ class Verdict {
     if (json == null) return unknown;
 
     return Verdict(
-      value: json['value'] as bool? ?? false,
+      value: _bool(json['value']) ?? false,
       confidence: Confidence.parse(json['confidence']),
-      reasons: (json['reasons'] as List?)?.cast<String>() ?? const <String>[],
+      reasons: _strings(json['reasons']),
     );
   }
 }
@@ -197,8 +223,7 @@ class Verdicts {
   final Verdict appCloner;
 
   factory Verdicts.fromJson(Map<String, dynamic> json) {
-    Verdict at(String key) =>
-        Verdict.fromJson(json[key] as Map<String, dynamic>?);
+    Verdict at(String key) => Verdict.fromJson(_map(json[key]));
 
     return Verdicts(
       instrumentation: at('instrumentation'),
@@ -224,9 +249,9 @@ class Lie {
   final String? detail;
 
   factory Lie.fromJson(Map<String, dynamic> json) => Lie(
-        id: json['id'] as String? ?? '',
-        kind: json['kind'] as String? ?? 'contradiction',
-        detail: json['detail'] as String?,
+        id: _string(json['id']) ?? '',
+        kind: _string(json['kind']) ?? 'contradiction',
+        detail: _string(json['detail']),
       );
 }
 
@@ -247,13 +272,8 @@ class IntegrityReport {
     }
 
     return IntegrityReport(
-      patchedNatives:
-          (json['patched_natives'] as List?)?.cast<String>() ?? const [],
-      lies: (json['lies'] as List?)
-              ?.whereType<Map<String, dynamic>>()
-              .map(Lie.fromJson)
-              .toList() ??
-          const [],
+      patchedNatives: _strings(json['patched_natives']),
+      lies: _maps(json['lies']).map(Lie.fromJson).toList(growable: false),
     );
   }
 }
@@ -277,18 +297,16 @@ class SignalReport {
   final IntegrityReport integrity;
 
   factory SignalReport.fromJson(Map<String, dynamic> json) => SignalReport(
-        schema: (json['schema'] as num?)?.toInt() ?? 0,
-        budgetMs: (json['budget_ms'] as num?)?.toInt() ?? 0,
-        elapsedMs: (json['elapsed_ms'] as num?)?.toInt() ?? 0,
-        sources: ((json['sources'] as Map?) ?? const {}).map(
-          (key, value) => MapEntry(
-            key as String,
-            SignalOutcome.fromJson((value as Map).cast<String, dynamic>()),
-          ),
-        ),
-        integrity: IntegrityReport.fromJson(
-          (json['integrity'] as Map?)?.cast<String, dynamic>(),
-        ),
+        schema: _int(json['schema']) ?? 0,
+        budgetMs: _int(json['budget_ms']) ?? 0,
+        elapsedMs: _int(json['elapsed_ms']) ?? 0,
+        sources: {
+          for (final entry
+              in (_map(json['sources']) ?? const <String, dynamic>{}).entries)
+            if (_map(entry.value) case final outcome?)
+              entry.key: SignalOutcome.fromJson(outcome),
+        },
+        integrity: IntegrityReport.fromJson(_map(json['integrity'])),
       );
 }
 
@@ -319,11 +337,11 @@ class IdentifyTrigger {
 
   factory IdentifyTrigger.fromJson(Map<String, dynamic> json) =>
       IdentifyTrigger(
-        signal: json['signal'] as String? ?? '',
-        group: json['group'] as String? ?? '',
-        weight: (json['weight'] as num?)?.toInt() ?? 0,
-        confidence: json['confidence'] as String? ?? '',
-        reason: json['reason'] as String? ?? '',
+        signal: _string(json['signal']) ?? '',
+        group: _string(json['group']) ?? '',
+        weight: _int(json['weight']) ?? 0,
+        confidence: _string(json['confidence']) ?? '',
+        reason: _string(json['reason']) ?? '',
       );
 }
 
@@ -393,30 +411,28 @@ class IdentifyResult {
   final SignalReport report;
 
   factory IdentifyResult.fromJson(Map<String, dynamic> json) => IdentifyResult(
-        requestId: json['requestId'] as String? ?? '',
-        visitorId: json['visitorId'] as String? ?? '',
-        visitorIsNew: json['visitorIsNew'] as bool? ?? false,
-        visitorConfidence: (json['visitorConfidence'] as num?)?.toInt() ?? 0,
-        identifiable: json['identifiable'] as bool? ?? false,
-        duplicate: json['duplicate'] as bool? ?? false,
-        state: json['state'] as String? ?? '',
-        reason: json['reason'] as String? ?? '',
+        requestId: _string(json['requestId']) ?? '',
+        visitorId: _string(json['visitorId']) ?? '',
+        visitorIsNew: _bool(json['visitorIsNew']) ?? false,
+        visitorConfidence: _int(json['visitorConfidence']) ?? 0,
+        identifiable: _bool(json['identifiable']) ?? false,
+        duplicate: _bool(json['duplicate']) ?? false,
+        state: _string(json['state']) ?? '',
+        reason: _string(json['reason']) ?? '',
         // Read without a fallback, unlike everything above it. The native
         // bridges send an explicit null when nothing scored the submission,
         // and `?? 0` here would turn that into a clean verdict — which is the
         // one answer that lets somebody through.
-        suspectScore: (json['suspectScore'] as num?)?.toInt(),
-        suspectLevel: json['suspectLevel'] as String?,
-        triggers: ((json['triggers'] as List?) ?? const [])
-            .whereType<Map>()
-            .map((trigger) =>
-                IdentifyTrigger.fromJson(trigger.cast<String, dynamic>()))
+        suspectScore: _int(json['suspectScore']),
+        suspectLevel: _string(json['suspectLevel']),
+        triggers: _maps(json['triggers'])
+            .map(IdentifyTrigger.fromJson)
             .toList(growable: false),
         verdicts: Verdicts.fromJson(
-          (json['verdicts'] as Map?)?.cast<String, dynamic>() ?? const {},
+          _map(json['verdicts']) ?? const <String, dynamic>{},
         ),
         report: SignalReport.fromJson(
-          (json['report'] as Map?)?.cast<String, dynamic>() ?? const {},
+          _map(json['report']) ?? const <String, dynamic>{},
         ),
       );
 }

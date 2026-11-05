@@ -166,8 +166,8 @@ void main() {
           () async {
         final calls = installGatedNative();
 
-        final client =
-            await Fingerly.load(apiKey: 'fly_pk_development_mobile', consent: state);
+        final client = await Fingerly.load(
+            apiKey: 'fly_pk_development_mobile', consent: state);
 
         expect(calls.single.method, 'configure');
         expect(calls.single.arguments['consent'], state.name);
@@ -403,5 +403,93 @@ void main() {
 
     expect(outcome.status, SignalStatus.error);
     expect(verdict.confidence, Confidence.low);
+  });
+
+  test('a result without reason and with unknown members still decodes', () {
+    // Since server 00f1eb5 an app is no longer told why a submission went
+    // unscored, and a newer native SDK may add members this binding has
+    // never heard of.
+    final json = _identifyResult()
+      ..remove('reason')
+      ..['deferredToken'] = 'tok_1'
+      ..['somethingNew'] = {'nested': true};
+
+    final result = IdentifyResult.fromJson(json);
+
+    expect(result.requestId, 'req_123');
+    expect(result.reason, '');
+    expect(result.suspectScore, 16);
+  });
+
+  test('members of the wrong type read as missing instead of throwing', () {
+    final result = IdentifyResult.fromJson({
+      'requestId': 42,
+      'visitorIsNew': 'yes',
+      'visitorConfidence': '92',
+      'suspectScore': 'high',
+      'triggers': [
+        'not-a-trigger',
+        {'signal': 'simulator', 'weight': 16.0, 'group': 7},
+      ],
+      'verdicts': {
+        'jailbreak': 'true',
+        'simulator': {
+          'value': 1,
+          'reasons': ['simulator-hardware', 3, null],
+        },
+      },
+      'report': {
+        'schema': '1',
+        'sources': {
+          'device': {
+            'status': 'ok',
+            'ms': 2,
+            'value': ['not', 'a', 'map']
+          },
+          'broken': 'not-an-outcome',
+        },
+        'integrity': {
+          'patched_natives': 'dlsym',
+          'lies': [
+            {'id': 'x', 'kind': 'swizzled'},
+            5,
+          ],
+        },
+      },
+    });
+
+    expect(result.requestId, '');
+    expect(result.visitorIsNew, isFalse);
+    expect(result.visitorConfidence, 0);
+    expect(result.suspectScore, isNull);
+    expect(result.triggers, hasLength(1));
+    expect(result.triggers.single.weight, 16);
+    expect(result.triggers.single.group, '');
+    expect(result.verdicts.jailbreak.reasons, isEmpty);
+    expect(result.verdicts.simulator.value, isFalse);
+    expect(result.verdicts.simulator.reasons, ['simulator-hardware']);
+    expect(result.report.schema, 0);
+    expect(result.report.sources.keys, ['device']);
+    expect(result.report.sources['device']!.value, isNull);
+    expect(result.report.integrity.patchedNatives, isEmpty);
+    expect(result.report.integrity.lies.single.kind, 'swizzled');
+  });
+
+  test('an unreadable native answer is a FingerlyException', () async {
+    for (final raw in ['not json', '[1, 2]', '"text"']) {
+      messenger.setMockMethodCallHandler(_channel, (_) async => raw);
+      final fingerly = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+
+      await expectLater(
+        fingerly.identify(),
+        throwsA(isA<FingerlyException>()),
+        reason: raw,
+      );
+      await expectLater(
+        fingerly.collect(),
+        throwsA(isA<FingerlyException>()),
+        reason: raw,
+      );
+    }
   });
 }

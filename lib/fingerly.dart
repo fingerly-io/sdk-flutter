@@ -157,9 +157,7 @@ class Fingerly {
       'submit': submit,
     });
 
-    return IdentifyResult.fromJson(
-      jsonDecode(raw) as Map<String, dynamic>,
-    );
+    return IdentifyResult.fromJson(_decode(raw));
   }
 
   /// Run the sources and assemble the report, without submitting.
@@ -170,9 +168,7 @@ class Fingerly {
   Future<SignalReport> collect() async {
     final raw = await _invoke<String>('collect');
 
-    return SignalReport.fromJson(
-      jsonDecode(raw) as Map<String, dynamic>,
-    );
+    return SignalReport.fromJson(_decode(raw));
   }
 
   /// The native SDK's version, which is the one that did the collecting.
@@ -222,6 +218,21 @@ Future<T> _invoke<T>(String method, [Map<String, dynamic>? arguments]) async {
     throw const FingerlyException('The SDK produced no report');
   }
   return result;
+}
+
+/// The native JSON as an object, or a [FingerlyException].
+///
+/// A `FormatException` or a `TypeError` out of `identify()` would escape an
+/// `on FingerlyException` handler, which is the one every caller writes.
+Map<String, dynamic> _decode(String raw) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } on FormatException {
+    throw const FingerlyException('The SDK produced an unreadable report');
+  }
+  if (decoded is Map<String, dynamic>) return decoded;
+  throw const FingerlyException('The SDK produced an unreadable report');
 }
 
 /// Call the native side for its effect.
