@@ -256,8 +256,18 @@ Future<R?> _guard<R>(Future<R?> Function() body) async {
     throw FingerlyException(
       error.message ?? 'The submission could not be sent',
       status: int.tryParse(error.code),
+      retryAfter: _retryAfter(error),
     );
   }
+}
+
+/// The wait a native transport failure carried, from `details.retryAfterMs`.
+Duration? _retryAfter(PlatformException error) {
+  final details = error.details;
+  final wait = details is Map ? details['retryAfterMs'] : null;
+  return wait is num && wait.isFinite && wait >= 0
+      ? Duration(milliseconds: wait.round())
+      : null;
 }
 
 /// The state behind a native `consent_required` refusal.

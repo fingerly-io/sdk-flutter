@@ -100,14 +100,23 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
             if let error {
                 // A refusal for want of consent carries its string code
                 // (`consent_required`) and the refusing state in `userInfo`,
-                // which Dart turns into `FingerlyConsentException`.
-                let state = error.userInfo["state"] as? String
+                // which Dart turns into `FingerlyConsentException`. A
+                // transport failure whose response named a wait carries it as
+                // `retryAfterMs`, which Dart turns into
+                // `FingerlyException.retryAfter`.
+                var details: [String: Any] = [:]
+                if let state = error.userInfo["state"] as? String {
+                    details["state"] = state
+                }
+                if let wait = error.userInfo["retryAfterMs"] as? NSNumber {
+                    details["retryAfterMs"] = wait
+                }
                 result(FlutterError(
                     // Native transport errors use the HTTP status as their
                     // code, which Dart preserves on `FingerlyException`.
                     code: error.userInfo["code"] as? String ?? "\(error.code)",
                     message: error.localizedDescription,
-                    details: state.map { ["state": $0] }
+                    details: details.isEmpty ? nil : details
                 ))
                 return
             }

@@ -219,6 +219,11 @@ Both are your configuration rather than the user's behaviour, and neither is
 worth retrying. The native SDK retries the ones that are (429 and 5xx) with
 full-jitter backoff before it ever throws.
 
+When the server asked for a pause with `Retry-After`, the exception carries it
+as `retryAfter`, a `Duration`. Wait at least that long before identifying
+again. It is null when the response named no wait, and on Android until the
+native Android bridge passes the header on.
+
 A call refused for want of consent throws `FingerlyConsentException`, a
 subclass of `FingerlyException` with `code` `consent_required`, a `state`, and
 no `status`. Catch it before `FingerlyException`, and answer it with

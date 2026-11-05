@@ -439,7 +439,7 @@ class IdentifyResult {
 
 /// A failure the caller can act on.
 class FingerlyException implements Exception {
-  const FingerlyException(this.message, {this.status});
+  const FingerlyException(this.message, {this.status, this.retryAfter});
 
   final String message;
 
@@ -448,6 +448,12 @@ class FingerlyException implements Exception {
   /// both are the customer's configuration rather than the user's, and an app
   /// that retries either drains a battery over a typo.
   final int? status;
+
+  /// How long the server asked the app to wait, from its `Retry-After`, when
+  /// the native SDK gave up on a 429 or 503 that named one. Null when the
+  /// response named no wait, and on platforms whose native bridge does not
+  /// pass one on. Wait at least this long before identifying again.
+  final Duration? retryAfter;
 
   @override
   String toString() => status == null

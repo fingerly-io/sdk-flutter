@@ -371,6 +371,54 @@ void main() {
     );
   });
 
+  test('a native Retry-After reaches FingerlyException.retryAfter', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      if (call.method != 'identify') return null;
+      throw PlatformException(
+        code: '429',
+        message: 'Too many requests',
+        details: {'retryAfterMs': 3000},
+      );
+    });
+    final fingerly = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+
+    await expectLater(
+      fingerly.identify(),
+      throwsA(
+        isA<FingerlyException>()
+            .having((error) => error.status, 'status', 429)
+            .having((error) => error.retryAfter, 'retryAfter',
+                const Duration(seconds: 3)),
+      ),
+    );
+  });
+
+  test('retryAfter is null when the failure named no wait', () async {
+    for (final details in <Object?>[
+      null,
+      {'retryAfterMs': 'soon'},
+      {'retryAfterMs': -1},
+      {'state': 'pending-not-a-consent-code'},
+    ]) {
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (_) async => throw PlatformException(
+          code: '503',
+          message: 'unavailable',
+          details: details,
+        ),
+      );
+
+      await expectLater(
+        Fingerly.nativeVersion(),
+        throwsA(isA<FingerlyException>()
+            .having((error) => error.retryAfter, 'retryAfter', isNull)),
+        reason: '$details',
+      );
+    }
+  });
+
   test('a missing native plugin becomes an actionable FingerlyException',
       () async {
     messenger.setMockMethodCallHandler(
