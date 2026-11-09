@@ -154,6 +154,12 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             // into `FingerlyConsentException`.
             platformThread.post { result.error(code, message, null) }
         }
+
+        override fun onError(code: String, message: String, retryAfterMs: Long?) {
+            // `details['retryAfterMs']` is where the Dart side reads it.
+            val details = retryAfterMs?.let { mapOf("retryAfterMs" to it) }
+            platformThread.post { result.error(code, message, details) }
+        }
     }
 
     private companion object {
