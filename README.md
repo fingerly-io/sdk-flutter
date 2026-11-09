@@ -28,11 +28,15 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a
 shipped binary — it is scoped to the app identifiers you list. A **secret** key
 is refused when it arrives from a client.
 
-`identify()` collects and submits. It resolves with what the server said —
-`visitorId`, `suspectScore`, `suspectLevel` and the triggers behind them — so
-there is no second call to make. Each trigger names the signal and its group,
-and nothing else; your weights stay on the server, and your backend reads the
-rest of the event by `requestId`. `visitorConfidence`, `visitorIsNew`,
+`identify()` collects and submits. It resolves with what the server said:
+`requestId`, `visitorId` and, by default, `suspectScore` and `suspectLevel`, so
+there is no second call to make. The score is a convenience for showing a result
+straight away. Each SDK key has a setting that hides it from apps, and then both
+fields are `null`, exactly as on a check nobody scored: an app cannot tell which
+it was, so read `null` as "no answer here", never as clean. The signals behind a
+score never reach the device; read them on your backend, through the server-side
+event read by `requestId` or webhooks, or in the dashboard.
+`visitorConfidence`, `visitorIsNew`,
 `identifiable` and `duplicate` can be `null` when the server did not say, which
 is not the same as `0` or `false`. Send the `requestId` and
 `visitorId` to your own backend with the request they belong to, and let your

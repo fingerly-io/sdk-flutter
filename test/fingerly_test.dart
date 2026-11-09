@@ -40,15 +40,6 @@ Map<String, Object?> _identifyResult() => {
       'reason': '',
       'suspectScore': 16,
       'suspectLevel': 'medium',
-      'triggers': [
-        {
-          'signal': 'simulator',
-          'group': 'environment',
-          'weight': 16,
-          'confidence': 'high',
-          'reason': 'simulator-hardware',
-        },
-      ],
       'report': _report(),
     };
 
@@ -269,7 +260,7 @@ void main() {
     expect(result.requestId, 'req_123');
     expect(result.visitorId, 'visitor_123');
     expect(result.suspectScore, 16);
-    expect(result.triggers.single.signal, 'simulator');
+    expect(result.suspectLevel, 'medium');
     expect(result.report.sources['device']?.status, SignalStatus.ok);
     expect(result.report.sources['attest']?.reason, 'simulator');
   });
@@ -299,7 +290,6 @@ void main() {
     expect(result.duplicate, isNull);
     expect(result.suspectScore, isNull);
     expect(result.suspectLevel, isNull);
-    expect(result.triggers, isEmpty);
     expect(result.state, '');
     expect(result.reason, '');
   });
@@ -329,19 +319,62 @@ void main() {
     }
   });
 
-  test('a stale native weight or verdict never reaches the Dart result', () {
-    final result = IdentifyResult.fromJson(_identifyResult()
-      ..['verdicts'] = {
-        'jailbreak': {'value': true, 'confidence': 'high', 'reasons': []},
-      });
-    final trigger = result.triggers.single;
+  test('a stale native signal list or verdict never reaches the Dart result',
+      () {
+    for (final stale in <Object?>[
+      [
+        {'signal': 'simulator', 'weight': 16, 'confidence': 'high'},
+      ],
+      'not-a-list',
+      null,
+      7,
+    ]) {
+      final result = IdentifyResult.fromJson(_identifyResult()
+        ..['triggers'] = stale
+        ..['futureMember'] = {'nested': true}
+        ..['verdicts'] = {
+          'jailbreak': {'value': true, 'confidence': 'high', 'reasons': []},
+        });
 
-    expect(trigger.signal, 'simulator');
-    expect(trigger.group, 'environment');
-    expect(trigger.confidence, 'high');
-    expect(trigger.reason, 'simulator-hardware');
-    expect(() => (trigger as dynamic).weight, throwsNoSuchMethodError);
-    expect(() => (result as dynamic).verdicts, throwsNoSuchMethodError);
+      expect(result.suspectScore, 16, reason: '$stale');
+      expect(() => (result as dynamic).triggers, throwsNoSuchMethodError);
+      expect(() => (result as dynamic).verdicts, throwsNoSuchMethodError);
+    }
+  });
+
+  test('a score reads from an answer that has no signals', () {
+    final result = IdentifyResult.fromJson(_identifyResult());
+
+    expect(result.suspectScore, 16);
+    expect(result.suspectLevel, 'medium');
+  });
+
+  test('an answer with neither score nor signals reads as no answer', () {
+    final result = IdentifyResult.fromJson(_identifyResult()
+      ..remove('suspectScore')
+      ..remove('suspectLevel'));
+
+    expect(result.requestId, 'req_123');
+    expect(result.visitorId, 'visitor_123');
+    expect(result.suspectScore, isNull);
+    expect(result.suspectLevel, isNull);
+  });
+
+  test('a null score crosses the channel as null, not 0 or an empty string',
+      () async {
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'configure') return null;
+      return jsonEncode(_identifyResult()
+        ..['suspectScore'] = null
+        ..['suspectLevel'] = null);
+    });
+    final client = await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+
+    final result = await client.identify();
+
+    expect(result.suspectScore, isNull);
+    expect(result.suspectLevel, isNull);
   });
 
   test('a null score stays null when the server did not score', () {
@@ -610,9 +643,6 @@ void main() {
     expect(result.visitorIsNew, isNull);
     expect(result.visitorConfidence, isNull);
     expect(result.suspectScore, isNull);
-    expect(result.triggers, hasLength(1));
-    expect(result.triggers.single.signal, 'simulator');
-    expect(result.triggers.single.group, '');
     expect(result.report.schema, 0);
     expect(result.report.sources.keys, ['device']);
     expect(result.report.sources['device']!.value, isNull);

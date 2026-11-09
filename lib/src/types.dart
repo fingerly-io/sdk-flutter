@@ -184,36 +184,6 @@ class SignalReport {
       );
 }
 
-/// One thing the server scored on.
-class IdentifyTrigger {
-  const IdentifyTrigger({
-    required this.signal,
-    required this.group,
-    required this.confidence,
-    required this.reason,
-  });
-
-  /// The signal that fired, such as `patched-natives`.
-  final String signal;
-
-  /// The family it belongs to. Empty when it belongs to none.
-  final String group;
-
-  /// How sure the server is of this one signal.
-  final String confidence;
-
-  /// A short explanation, when there is one.
-  final String reason;
-
-  factory IdentifyTrigger.fromJson(Map<String, dynamic> json) =>
-      IdentifyTrigger(
-        signal: _string(json['signal']) ?? '',
-        group: _string(json['group']) ?? '',
-        confidence: _string(json['confidence']) ?? '',
-        reason: _string(json['reason']) ?? '',
-      );
-}
-
 /// What `identify()` resolves with.
 class IdentifyResult {
   const IdentifyResult({
@@ -227,7 +197,6 @@ class IdentifyResult {
     required this.reason,
     required this.suspectScore,
     required this.suspectLevel,
-    required this.triggers,
     required this.report,
   });
 
@@ -243,8 +212,7 @@ class IdentifyResult {
         state = '',
         reason = '',
         suspectScore = null,
-        suspectLevel = null,
-        triggers = const <IdentifyTrigger>[];
+        suspectLevel = null;
 
   /// Empty when `submit` was false: nothing was sent, so an invented
   /// identifier would be worse than an empty one.
@@ -276,18 +244,18 @@ class IdentifyResult {
   /// Why, when [state] needs explaining. Empty when it does not.
   final String reason;
 
-  /// The server's score, or null when it did not score.
+  /// The server's score, or null when there is none to show.
   ///
-  /// Null and 0 are different answers: 0 is "scored, nothing fired", null is
-  /// "nobody scored it". Do not collapse them with `?? 0` — that turns an
-  /// unscored check into a clean one.
+  /// A convenience for showing a result straight away. Null means the check
+  /// was not scored or the SDK key hides the score from apps, and an app
+  /// cannot tell which. Null and 0 are different answers: 0 is "scored,
+  /// nothing fired". Do not collapse them with `?? 0` — that turns an unknown
+  /// into a clean one. The signals behind a score are read on your backend.
   final int? suspectScore;
 
-  /// The score as a band — `low`, `medium`, `high`. Null when unscored.
+  /// The score as a band — `low`, `medium`, `high`. Null exactly when
+  /// [suspectScore] is.
   final String? suspectLevel;
-
-  /// What the server scored on. Empty when it found nothing.
-  final List<IdentifyTrigger> triggers;
 
   /// The report that was sent, for debugging and for offline callers.
   final SignalReport report;
@@ -307,9 +275,6 @@ class IdentifyResult {
         reason: _string(json['reason']) ?? '',
         suspectScore: _int(json['suspectScore']),
         suspectLevel: _string(json['suspectLevel']),
-        triggers: _maps(json['triggers'])
-            .map(IdentifyTrigger.fromJson)
-            .toList(growable: false),
         report: SignalReport.fromJson(
           _map(json['report']) ?? const <String, dynamic>{},
         ),
