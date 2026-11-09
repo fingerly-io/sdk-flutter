@@ -23,10 +23,11 @@ rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
-        // Used by contributors until io.fingerly:fingerly is published. Maven
-        // Central remains ahead of it, so released applications resolve the
-        // published artifact once it exists.
+        // Ahead of Fingerly's own repository, so that a contributor's local
+        // build is found without that host having to answer.
         mavenLocal()
+        // Where the native SDK, io.fingerly:fingerly, comes from.
+        maven { url 'https://maven.fingerly.io' }
     }
 }
 

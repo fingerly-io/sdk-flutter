@@ -253,23 +253,30 @@ iPhone 16e simulator: all 21 native sources collected in 142ms and
 API 36 Pixel 8 emulator: all 22 native sources completed, `emulator=true`, with
 a 1095ms cold collection and a 122ms warm collection.
 
-The native SDKs are not published yet. For a CocoaPods development build, point
-the host application's Podfile at the sibling iOS checkout:
+The native SDKs are not published yet. For a CocoaPods development build, run
+`scripts/build-xcframework.sh` in the iOS checkout, unzip
+`build/Fingerly-0.1.0.xcframework.zip` beside `Fingerly.podspec`, and point the
+host application's Podfile at that checkout:
 
 ```ruby
 pod 'Fingerly', :path => '/path/to/sdks/mobile/ios'
 ```
 
 The Flutter Swift package currently resolves the private iOS repository's
-authenticated `main` branch. Before public release, publish and tag the native
-SDK and change that dependency to `from: "0.1.0"`.
+authenticated `main` branch. Before public release, publish the native SDK's
+binary Swift package and point that dependency at it.
 
-The Android plugin depends on `io.fingerly:fingerly:0.1.0`, which is not published
-yet. Until it is, build the SDK's AAR into your local Maven repository:
+The Android plugin depends on `io.fingerly:fingerly:0.1.0` from Fingerly's Maven
+repository, `https://maven.fingerly.io`, which the plugin adds to the build
+itself, so no host-project repository override is required. That repository is
+not live yet. Until it is, and for contributors at any time, build the SDK's AAR
+into your local Maven repository:
 
 ```
 cd ../android && ./gradlew :fingerly:publishToMavenLocal
 ```
 
-The plugin checks Maven Central first and Maven Local second, so no host-project
-repository override is required for this contributor workflow.
+The plugin checks Maven Local before Fingerly's repository.
+
+This plugin is licensed under Apache-2.0. The native SDK it depends on is a
+closed binary under the Fingerly SDK License.
