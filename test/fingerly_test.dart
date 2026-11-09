@@ -49,13 +49,6 @@ Map<String, Object?> _identifyResult() => {
           'reason': 'simulator-hardware',
         },
       ],
-      'verdicts': {
-        'simulator': {
-          'value': true,
-          'confidence': 'high',
-          'reasons': ['simulator-hardware'],
-        },
-      },
       'report': _report(),
     };
 
@@ -277,11 +270,87 @@ void main() {
     expect(result.visitorId, 'visitor_123');
     expect(result.suspectScore, 16);
     expect(result.triggers.single.signal, 'simulator');
-    expect(result.verdicts.simulator.value, isTrue);
-    expect(result.verdicts.simulator.confidence, Confidence.high);
-    expect(result.verdicts.jailbreak, same(Verdict.unknown));
     expect(result.report.sources['device']?.status, SignalStatus.ok);
     expect(result.report.sources['attest']?.reason, 'simulator');
+  });
+
+  test('identify(submit: false) surfaces the raw report and nothing else',
+      () async {
+    // Forged: a native side that fills the server's fields anyway must not be
+    // able to make an unsent check look answered.
+    final forged = _identifyResult()..['verdicts'] = {'jailbreak': true};
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      if (call.method == 'configure') return null;
+      expect(
+          call.arguments, {'tag': null, 'submit': false, 'automatic': false});
+      return jsonEncode(forged);
+    });
+
+    final client = await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+    final result = await client.identify(submit: false);
+
+    expect(result.report.sources.keys, ['device', 'attest']);
+    expect(result.requestId, '');
+    expect(result.visitorId, '');
+    expect(result.visitorConfidence, isNull);
+    expect(result.visitorIsNew, isNull);
+    expect(result.identifiable, isNull);
+    expect(result.duplicate, isNull);
+    expect(result.suspectScore, isNull);
+    expect(result.suspectLevel, isNull);
+    expect(result.triggers, isEmpty);
+    expect(result.state, '');
+    expect(result.reason, '');
+  });
+
+  test('identify(submit: false) refuses an answer with no readable report',
+      () async {
+    for (final answer in <Object?>[
+      <String, Object?>{},
+      {'report': null},
+      {'report': 'text'},
+      {
+        'report': [1]
+      },
+    ]) {
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (call) async => call.method == 'configure' ? null : jsonEncode(answer),
+      );
+      final client = await Fingerly.load(
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+
+      await expectLater(
+        client.identify(submit: false),
+        throwsA(isA<FingerlyException>()),
+        reason: '$answer',
+      );
+    }
+  });
+
+  test('a stale native weight or verdict never reaches the Dart result', () {
+    final result = IdentifyResult.fromJson(_identifyResult()
+      ..['verdicts'] = {
+        'jailbreak': {'value': true, 'confidence': 'high', 'reasons': []},
+      });
+    final trigger = result.triggers.single;
+
+    expect(trigger.signal, 'simulator');
+    expect(trigger.group, 'environment');
+    expect(trigger.confidence, 'high');
+    expect(trigger.reason, 'simulator-hardware');
+    expect(() => (trigger as dynamic).weight, throwsNoSuchMethodError);
+    expect(() => (result as dynamic).verdicts, throwsNoSuchMethodError);
+  });
+
+  test('a null score stays null when the server did not score', () {
+    final result = IdentifyResult.fromJson(_identifyResult()
+      ..['suspectScore'] = null
+      ..['suspectLevel'] = null);
+
+    expect(result.suspectScore, isNull);
+    expect(result.suspectLevel, isNull);
   });
 
   test('identify forwards automatic', () async {
@@ -459,14 +528,8 @@ void main() {
       'status': 'new-native-status',
       'ms': 3,
     });
-    final verdict = Verdict.fromJson({
-      'value': true,
-      'confidence': 'new-confidence',
-      'reasons': <String>[],
-    });
 
     expect(outcome.status, SignalStatus.error);
-    expect(verdict.confidence, Confidence.low);
   });
 
   test('a result without reason and with unknown members still decodes', () {
@@ -485,6 +548,34 @@ void main() {
     expect(result.suspectScore, 16);
   });
 
+  test('an answer the server did not give stays null on both native shapes',
+      () {
+    final android = IdentifyResult.fromJson({
+      'requestId': 'req_dup',
+      'visitorIsNew': null,
+      'visitorConfidence': null,
+      'identifiable': null,
+      'duplicate': null,
+    });
+    final ios = IdentifyResult.fromJson({'requestId': 'req_dup'});
+
+    for (final result in [android, ios]) {
+      expect(result.visitorIsNew, isNull);
+      expect(result.visitorConfidence, isNull);
+      expect(result.identifiable, isNull);
+      expect(result.duplicate, isNull);
+    }
+  });
+
+  test('a duplicate answer keeps its flag with the visitor fields empty', () {
+    final result = IdentifyResult.fromJson(
+        {'requestId': 'req_dup', 'visitorId': '', 'duplicate': true});
+
+    expect(result.duplicate, isTrue);
+    expect(result.visitorId, '');
+    expect(result.visitorConfidence, isNull);
+  });
+
   test('members of the wrong type read as missing instead of throwing', () {
     final result = IdentifyResult.fromJson({
       'requestId': 42,
@@ -493,15 +584,8 @@ void main() {
       'suspectScore': 'high',
       'triggers': [
         'not-a-trigger',
-        {'signal': 'simulator', 'weight': 16.0, 'group': 7},
+        {'signal': 'simulator', 'group': 7},
       ],
-      'verdicts': {
-        'jailbreak': 'true',
-        'simulator': {
-          'value': 1,
-          'reasons': ['simulator-hardware', 3, null],
-        },
-      },
       'report': {
         'schema': '1',
         'sources': {
@@ -523,15 +607,12 @@ void main() {
     });
 
     expect(result.requestId, '');
-    expect(result.visitorIsNew, isFalse);
-    expect(result.visitorConfidence, 0);
+    expect(result.visitorIsNew, isNull);
+    expect(result.visitorConfidence, isNull);
     expect(result.suspectScore, isNull);
     expect(result.triggers, hasLength(1));
-    expect(result.triggers.single.weight, 16);
+    expect(result.triggers.single.signal, 'simulator');
     expect(result.triggers.single.group, '');
-    expect(result.verdicts.jailbreak.reasons, isEmpty);
-    expect(result.verdicts.simulator.value, isFalse);
-    expect(result.verdicts.simulator.reasons, ['simulator-hardware']);
     expect(result.report.schema, 0);
     expect(result.report.sources.keys, ['device']);
     expect(result.report.sources['device']!.value, isNull);

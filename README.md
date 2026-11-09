@@ -21,25 +21,27 @@ final fingerly = await Fingerly.load(
 );
 final result = await fingerly.identify(tag: 'checkout');
 
-if (result.verdicts.jailbreak.value &&
-    result.verdicts.jailbreak.confidence == Confidence.high) {
-  // step up to a challenge, hold for review, add friction
-}
+// Send result.requestId to your backend and make the decision there.
 ```
 
 The key is a **publishable** SDK key from the dashboard, and it is safe in a
 shipped binary — it is scoped to the app identifiers you list. A **secret** key
 is refused when it arrives from a client.
 
-`identify()` collects, scores on the device, and submits. It resolves with the
-server's verdict — `visitorId`, `suspectScore`, `suspectLevel` and the triggers
-behind them — so there is no second call to make. Send the `requestId` and
+`identify()` collects and submits. It resolves with what the server said —
+`visitorId`, `suspectScore`, `suspectLevel` and the triggers behind them — so
+there is no second call to make. Each trigger names the signal and its group,
+and nothing else; your weights stay on the server, and your backend reads the
+rest of the event by `requestId`. `visitorConfidence`, `visitorIsNew`,
+`identifiable` and `duplicate` can be `null` when the server did not say, which
+is not the same as `0` or `false`. Send the `requestId` and
 `visitorId` to your own backend with the request they belong to, and let your
 backend decide: **the score in your hand came from a device you do not
 control**, and an app that branches on it locally is an app whose branch can be
 patched out.
 
-Pass `submit: false` to collect and score without sending anything.
+Pass `submit: false` to collect without sending anything. Only `report` is
+filled in then: the server's fields stay empty and `suspectScore` stays null.
 
 Pass `automatic: true` for a call your app makes on its own rather than in
 answer to the user: on start, on a timer, on returning to the foreground. It
@@ -134,52 +136,10 @@ So a plugin that collected what it *could* reach from Dart would report a
 jailbroken, instrumented device as clean — which is worse than reporting
 nothing, because a customer would believe it.
 
-This package calls the native SDK and hands back what it produced. The detection
+This package calls the native SDK and hands back what it produced. The collection
 logic lives in one place per platform, in Swift and in Kotlin, and improving it
 improves Flutter, React Native and native apps at the same time rather than
-three times over.
-
-## The verdicts
-
-```dart
-class Verdicts {
-  final Verdict instrumentation;  // Frida, Substrate, Substitute, ElleKit
-  final Verdict mitm;             // something intercepting the app's TLS
-  final Verdict automation;       // a debugger or a UI-test runner
-  final Verdict tampering;        // hooked functions, injected images
-  final Verdict farm;             // mass-provisioned or reset-fresh
-
-  final Verdict jailbreak;        // iOS
-  final Verdict simulator;        // iOS
-  final Verdict root;             // Android
-  final Verdict emulator;         // Android
-  final Verdict appCloner;        // Android
-}
-```
-
-One class covering both platforms, with the platform-specific members answering
-`Verdict.unknown` where they do not apply. Two classes and a union would be more
-honest about the difference and would make every call site branch on the
-platform to read a field — the wrong trade for a cross-platform binding, where
-the point is writing the check once.
-
-The distinction is not lost: `jailbreak` on Android comes back with
-`value: false` **and** an empty `reasons` list, which is what `Verdict.unknown`
-means. A caller that needs to tell "we looked and found nothing" from "this
-platform cannot be asked" reads `reasons.isEmpty`.
-
-Each verdict carries why, strongest first:
-
-```dart
-if (result.verdicts.instrumentation.value) {
-  debugPrint(result.verdicts.instrumentation.reasons.join(', '));
-  // → instrumentation-image-libhooker.dylib, instrumentation-thread-gum-js-loop
-}
-```
-
-These are advice. The same rules run again on the server, over the stored
-report, where they can improve without every customer shipping an app update.
-**The decision belongs on your server.**
+three times over. What the signals mean is decided on the server.
 
 ## The platform string
 

@@ -13,9 +13,11 @@
 /// nothing, because a customer would believe it. This package calls the native
 /// SDK and hands back what it produced.
 ///
-/// The consequence worth stating: the detection logic lives in one place per
+/// The consequence worth stating: the collection logic lives in one place per
 /// platform, in Swift and in Kotlin, and improving it improves Flutter, React
-/// Native and native apps at the same time rather than three times over.
+/// Native and native apps at the same time rather than three times over. What
+/// the signals mean is decided on the server, and nothing here reaches a
+/// conclusion of its own.
 ///
 /// ```dart
 /// import 'package:fingerly_flutter/fingerly.dart';
@@ -26,10 +28,7 @@
 /// await fingerly.setConsent(ConsentState.granted);
 /// final result = await fingerly.identify(tag: 'checkout');
 ///
-/// if (result.verdicts.jailbreak.value &&
-///     result.verdicts.jailbreak.confidence == Confidence.high) {
-///   // step up to a challenge
-/// }
+/// // Send result.requestId to your backend and make the decision there.
 /// ```
 library fingerly;
 
@@ -138,17 +137,17 @@ class Fingerly {
     return _invokeVoid('setConsent', {'state': state.name});
   }
 
-  /// Collect, score on the device, and submit.
+  /// Collect and submit.
   ///
-  /// Returns the server's verdict, not a receipt for one. There is no second
+  /// Returns the server's answer, not a receipt for one. There is no second
   /// call to make: the address lookup and the scoring happen on the request,
   /// so [IdentifyResult.suspectScore] and [IdentifyResult.visitorId] are
   /// populated by the time this resolves.
   ///
-  /// Pass `submit: false` to collect and score without sending anything. The
-  /// server's fields come back empty then, and [IdentifyResult.suspectScore]
-  /// stays null rather than 0 — nobody scored it, which is not the same as
-  /// scoring it and finding nothing.
+  /// Pass `submit: false` to collect without sending anything. Only
+  /// [IdentifyResult.report] is filled in then. The server's fields come back
+  /// empty, and [IdentifyResult.suspectScore] stays null rather than 0 — nobody
+  /// scored it, which is not the same as scoring it and finding nothing.
   ///
   /// Pass `automatic: true` for a call the app makes on its own rather than
   /// in answer to the user (on start, on a timer, on returning to the
@@ -168,8 +167,17 @@ class Fingerly {
       'submit': submit,
       'automatic': automatic,
     });
+    final json = _decode(raw);
 
-    return IdentifyResult.fromJson(_decode(raw));
+    if (submit) return IdentifyResult.fromJson(json);
+
+    // Everything but the report is ignored, so nothing the native side sends
+    // can pass for an answer when no server was asked.
+    final report = json['report'];
+    if (report is! Map<String, dynamic>) {
+      throw const FingerlyException('The SDK produced an unreadable report');
+    }
+    return IdentifyResult.reportOnly(SignalReport.fromJson(report));
   }
 
   /// Run the sources and assemble the report, without submitting.

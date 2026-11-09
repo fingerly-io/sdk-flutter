@@ -84,19 +84,6 @@ enum ConsentState {
       };
 }
 
-/// How sure a verdict is.
-enum Confidence {
-  low,
-  medium,
-  high;
-
-  static Confidence parse(Object? value) => switch (value) {
-        'high' => Confidence.high,
-        'medium' => Confidence.medium,
-        _ => Confidence.low,
-      };
-}
-
 /// What one source reported.
 class SignalOutcome {
   const SignalOutcome({
@@ -125,119 +112,6 @@ class SignalOutcome {
         value: _map(json['value']),
         reason: _string(json['reason']),
       );
-}
-
-/// One detector's answer.
-///
-/// [reasons] is the point of this type. A boolean that cannot say why it is
-/// true is not reviewable, and every one of these will eventually be argued
-/// with by a customer looking at a blocked user.
-class Verdict {
-  const Verdict({
-    required this.value,
-    required this.confidence,
-    required this.reasons,
-  });
-
-  final bool value;
-  final Confidence confidence;
-
-  /// Strongest first, so truncating this list keeps the tell that drove it.
-  final List<String> reasons;
-
-  /// A verdict with nothing behind it — the native SDK did not report one.
-  ///
-  /// Not the same as a verdict of false, and a caller that treats it as one is
-  /// a caller that reads "we could not look" as "nothing is wrong".
-  static const unknown = Verdict(
-    value: false,
-    confidence: Confidence.low,
-    reasons: <String>[],
-  );
-
-  factory Verdict.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return unknown;
-
-    return Verdict(
-      value: _bool(json['value']) ?? false,
-      confidence: Confidence.parse(json['confidence']),
-      reasons: _strings(json['reasons']),
-    );
-  }
-}
-
-/// The verdicts a native application can reach.
-///
-/// One class covering both platforms, with the platform-specific members
-/// answering [Verdict.unknown] where they do not apply. Two classes and a union
-/// would be more honest about the difference and would make every call site
-/// branch on the platform to read a field — which is the wrong trade for a
-/// cross-platform binding, where the whole point is writing the check once.
-///
-/// The distinction is not lost: `jailbreak` on Android and `root` on iOS both
-/// come back with `value: false` *and* an empty `reasons` list, which is what
-/// [Verdict.unknown] means.
-class Verdicts {
-  const Verdicts({
-    required this.instrumentation,
-    required this.mitm,
-    required this.automation,
-    required this.tampering,
-    required this.farm,
-    required this.jailbreak,
-    required this.simulator,
-    required this.root,
-    required this.emulator,
-    required this.appCloner,
-  });
-
-  /// Frida, Substrate, Substitute, ElleKit — anything rewriting the process.
-  final Verdict instrumentation;
-
-  /// Something intercepting the app's own TLS.
-  final Verdict mitm;
-
-  /// A debugger or a UI-test runner driving the process.
-  final Verdict automation;
-
-  /// Hooked functions, injected images, a signature that is not the app's.
-  final Verdict tampering;
-
-  /// A device that looks mass-provisioned or reset-fresh. The half one device
-  /// can see about itself; the conclusive half is the server's.
-  final Verdict farm;
-
-  /// iOS. [Verdict.unknown] on Android.
-  final Verdict jailbreak;
-
-  /// iOS. [Verdict.unknown] on Android.
-  final Verdict simulator;
-
-  /// Android. [Verdict.unknown] on iOS.
-  final Verdict root;
-
-  /// Android. [Verdict.unknown] on iOS.
-  final Verdict emulator;
-
-  /// Android. [Verdict.unknown] on iOS.
-  final Verdict appCloner;
-
-  factory Verdicts.fromJson(Map<String, dynamic> json) {
-    Verdict at(String key) => Verdict.fromJson(_map(json[key]));
-
-    return Verdicts(
-      instrumentation: at('instrumentation'),
-      mitm: at('mitm'),
-      automation: at('automation'),
-      tampering: at('tampering'),
-      farm: at('farm'),
-      jailbreak: at('jailbreak'),
-      simulator: at('simulator'),
-      root: at('root'),
-      emulator: at('emulator'),
-      appCloner: at('appCloner'),
-    );
-  }
 }
 
 /// A hook, a substituted implementation or a claim that does not add up.
@@ -315,7 +189,6 @@ class IdentifyTrigger {
   const IdentifyTrigger({
     required this.signal,
     required this.group,
-    required this.weight,
     required this.confidence,
     required this.reason,
   });
@@ -325,9 +198,6 @@ class IdentifyTrigger {
 
   /// The family it belongs to. Empty when it belongs to none.
   final String group;
-
-  /// What it was worth towards the score.
-  final int weight;
 
   /// How sure the server is of this one signal.
   final String confidence;
@@ -339,7 +209,6 @@ class IdentifyTrigger {
       IdentifyTrigger(
         signal: _string(json['signal']) ?? '',
         group: _string(json['group']) ?? '',
-        weight: _int(json['weight']) ?? 0,
         confidence: _string(json['confidence']) ?? '',
         reason: _string(json['reason']) ?? '',
       );
@@ -359,9 +228,23 @@ class IdentifyResult {
     required this.suspectScore,
     required this.suspectLevel,
     required this.triggers,
-    required this.verdicts,
     required this.report,
   });
+
+  /// `identify(submit: false)`: nothing was sent, so nobody answered and every
+  /// server field is empty.
+  const IdentifyResult.reportOnly(SignalReport this.report)
+      : requestId = '',
+        visitorId = '',
+        visitorIsNew = null,
+        visitorConfidence = null,
+        identifiable = null,
+        duplicate = null,
+        state = '',
+        reason = '',
+        suspectScore = null,
+        suspectLevel = null,
+        triggers = const <IdentifyTrigger>[];
 
   /// Empty when `submit` was false: nothing was sent, so an invented
   /// identifier would be worse than an empty one.
@@ -371,18 +254,21 @@ class IdentifyResult {
   /// was submitted.
   final String visitorId;
 
-  /// True when the server had never seen this visitor before.
-  final bool visitorIsNew;
+  /// True when the server had never seen this visitor before. Null when it
+  /// did not say.
+  final bool? visitorIsNew;
 
-  /// How sure the server is of [visitorId], 0 to 100.
-  final int visitorConfidence;
+  /// How sure the server is of [visitorId], 0 to 100. Null when it did not
+  /// say, which is not the same as 0.
+  final int? visitorConfidence;
 
-  /// False when the report carried too little to identify anyone.
-  final bool identifiable;
+  /// False when the report carried too little to identify anyone. Null when
+  /// the server did not say.
+  final bool? identifiable;
 
-  /// True when this submission was answered before, and this verdict belongs
-  /// to the first one.
-  final bool duplicate;
+  /// True when this submission was answered before, and this answer belongs
+  /// to the first one. Null when the server did not say.
+  final bool? duplicate;
 
   /// The server's disposition of the check.
   final String state;
@@ -403,34 +289,27 @@ class IdentifyResult {
   /// What the server scored on. Empty when it found nothing.
   final List<IdentifyTrigger> triggers;
 
-  /// The local verdicts, available immediately. Advisory — the server's are
-  /// the answer.
-  final Verdicts verdicts;
-
   /// The report that was sent, for debugging and for offline callers.
   final SignalReport report;
 
   factory IdentifyResult.fromJson(Map<String, dynamic> json) => IdentifyResult(
         requestId: _string(json['requestId']) ?? '',
         visitorId: _string(json['visitorId']) ?? '',
-        visitorIsNew: _bool(json['visitorIsNew']) ?? false,
-        visitorConfidence: _int(json['visitorConfidence']) ?? 0,
-        identifiable: _bool(json['identifiable']) ?? false,
-        duplicate: _bool(json['duplicate']) ?? false,
+        // These and the score are read without a fallback, unlike the strings.
+        // A native bridge sends null or nothing when the server did not say,
+        // and `?? 0` or `?? false` would turn that into a real answer, which
+        // for the score is the one answer that lets somebody through.
+        visitorIsNew: _bool(json['visitorIsNew']),
+        visitorConfidence: _int(json['visitorConfidence']),
+        identifiable: _bool(json['identifiable']),
+        duplicate: _bool(json['duplicate']),
         state: _string(json['state']) ?? '',
         reason: _string(json['reason']) ?? '',
-        // Read without a fallback, unlike everything above it. The native
-        // bridges send an explicit null when nothing scored the submission,
-        // and `?? 0` here would turn that into a clean verdict — which is the
-        // one answer that lets somebody through.
         suspectScore: _int(json['suspectScore']),
         suspectLevel: _string(json['suspectLevel']),
         triggers: _maps(json['triggers'])
             .map(IdentifyTrigger.fromJson)
             .toList(growable: false),
-        verdicts: Verdicts.fromJson(
-          _map(json['verdicts']) ?? const <String, dynamic>{},
-        ),
         report: SignalReport.fromJson(
           _map(json['report']) ?? const <String, dynamic>{},
         ),
