@@ -1,0 +1,61 @@
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      new: ${{ steps.version.outputs.new }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: version
+        run: scripts/release-check.sh
+
+  # pub.dev only accepts a run whose ref is a tag, and a tag pushed with
+  # GITHUB_TOKEN starts no workflow, so this job tags and then dispatches
+  # publish.yml on that tag. If a dispatch ever fails, the tag already exists and
+  # this workflow will stop quietly: start publish.yml on the tag by hand.
+  tag:
+    needs: check
+    if: needs.check.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+      - name: Versions agree
+        run: scripts/check-versions.sh
+      - name: The pinned iOS binary is the published one
+        run: scripts/check-ios-binary.sh
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Package checks
+        run: dart pub publish --dry-run
+      - name: Tag and start publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/v$VERSION" -f sha="$GITHUB_SHA" > /dev/null
+          gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref "v$VERSION"

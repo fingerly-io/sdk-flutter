@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fingerly_flutter/fingerly.dart';
+import 'package:fingerly_flutter/fingerly_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

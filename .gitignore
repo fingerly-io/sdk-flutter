@@ -8,5 +8,8 @@ pubspec.lock
 .flutter-plugins-dependencies
 ios/Pods/
 ios/.symlinks/
+ios/Frameworks/
+ios/fingerly_flutter/.build/
+ios/fingerly_flutter/.swiftpm/
 android/.gradle/
 .DS_Store

@@ -12,22 +12,16 @@ let package = Package(
         // Flutter creates this package beside every plugin package while
         // resolving an application's generated plugin graph.
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
-        // The repository is private and untagged today, so development uses
-        // its authenticated main branch. Replace this with `from: "0.1.0"`
-        // when the native SDK is published; CocoaPods has the same release
-        // boundary through the `Fingerly` dependency below.
-        .package(
-            name: "Fingerly",
-            url: "ssh://git@github.com/fingerly-io/sdk-ios.git",
-            branch: "main"
-        ),
+        // The public binary package, at the same native version the podspec
+        // downloads, so both iOS paths ship the same framework.
+        .package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.1.0"),
     ],
     targets: [
         .target(
             name: "fingerly_flutter",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
-                .product(name: "Fingerly", package: "Fingerly"),
+                .product(name: "Fingerly", package: "sdk-ios"),
             ]
         ),
     ]

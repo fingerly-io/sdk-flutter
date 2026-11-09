@@ -4,7 +4,6 @@
 // whole architecture in one line: `mobile/android` is the implementation, and
 // this package is a binding to it, so a fix to a root check reaches Flutter
 // apps by bumping one dependency rather than by porting the fix a second time.
-// The iOS podspec beside it says the same thing about `mobile/ios`.
 
 group 'io.fingerly.sdk.flutter'
 version '0.1.0'
@@ -64,10 +63,6 @@ kotlin {
 }
 
 dependencies {
-    // The SDK that does the collecting.
-    //
-    // Not published yet — see the note in the package README. Until it is, an
-    // app building this from the monorepo publishes the native SDK to its local
-    // Maven repository first, as documented in the package README.
+    // The SDK that does the collecting, from the repository added above.
     implementation 'io.fingerly:fingerly:0.1.0'
 }

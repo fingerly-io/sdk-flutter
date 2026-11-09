@@ -20,7 +20,7 @@
 /// conclusion of its own.
 ///
 /// ```dart
-/// import 'package:fingerly_flutter/fingerly.dart';
+/// import 'package:fingerly_flutter/fingerly_flutter.dart';
 ///
 /// final fingerly = await Fingerly.load(apiKey: 'fly_pk_production_…');
 /// // From the consent tool, once the user has agreed (or another lawful basis
