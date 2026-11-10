@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   # The checksum is the one in that release's Swift package manifest, and the
   # pin is what makes a changed file on the download host an install failure.
   native_version = '0.1.0'
-  native_sha256  = ''
+  native_sha256  = 'c792d46d43ed21d67b7cca8731f616bfe1f7296a7a161ddaad1358b38ba096cf'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
   # This must differ from the native `Fingerly` pod by more than letter case.
