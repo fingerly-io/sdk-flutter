@@ -75,6 +75,49 @@ void main() {
     });
   });
 
+  group('Play Integrity', () {
+    test('forwards the project number to the native side', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        received = call;
+        return null;
+      });
+
+      await Fingerly.load(
+          apiKey: 'fly_pk_development_mobile',
+          playIntegrityCloudProjectNumber: 123456789012);
+
+      expect(received?.arguments, {
+        'apiKey': 'fly_pk_development_mobile',
+        'endpoint': '',
+        'platform': 'flutter-android',
+        'consent': 'pending',
+        'playIntegrityCloudProjectNumber': 123456789012,
+      });
+    });
+
+    test('refuses a number that is not a project before configuring',
+        () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final calls = <MethodCall>[];
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        calls.add(call);
+        return null;
+      });
+
+      for (final bad in [0, -1]) {
+        await expectLater(
+          Fingerly.load(
+              apiKey: 'fly_pk_development_mobile',
+              playIntegrityCloudProjectNumber: bad),
+          throwsArgumentError,
+        );
+      }
+      expect(calls, isEmpty);
+    });
+  });
+
   group('consent', () {
     /// A native side that keeps its own consent, as `FingerlyBridge` does, and
     /// refuses `identify` and `collect` with `consent_required` until it is
