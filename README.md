@@ -229,6 +229,14 @@ On Android, the plugin depends on `io.fingerly:fingerly:0.1.0` from Fingerly's
 Maven repository, `https://maven.fingerly.io`, and adds that repository to the
 build itself, so no host-project repository override is required.
 
+**Play Integrity is not available through this bridge yet.** The Android SDK
+has an optional artifact, `io.fingerly:fingerly-play-integrity` (server ADR
+0026), that adds Google Play Integrity verdicts to events. It is enabled by
+passing an integrity token provider when the native SDK is loaded, which this
+bridge does not do yet, so adding the artifact to an app built on this bridge
+has no effect. Native Android apps can use it today; see the Android SDK's
+`fingerly-play-integrity/README.md`.
+
 To work against a local native build instead: for iOS, run
 `scripts/build-xcframework.sh` in the iOS checkout and unzip
 `build/Fingerly-0.1.0.xcframework.zip` into this package's `ios/Frameworks`
