@@ -102,11 +102,26 @@ class Fingerly {
   /// the user has agreed, or where another lawful basis applies. Loading
   /// collects and sends nothing, whatever the consent, and the state passed
   /// here replaces whatever the native SDK held before.
+  ///
+  /// [playIntegrityCloudProjectNumber] is Android only: your Google Cloud
+  /// project number, the one linked to the app in Play Console, to add Play
+  /// Integrity verdicts to events (server ADR 0026). It takes effect only when
+  /// the app also depends on the optional `io.fingerly:fingerly-play-integrity`
+  /// artifact; without it the number is ignored and nothing fails. Ignored on
+  /// iOS. Null, the default, leaves Play Integrity off. Anything that is not a
+  /// positive number throws an [ArgumentError] before anything is configured.
   static Future<Fingerly> load({
     required String apiKey,
     String endpoint = '',
     ConsentState consent = ConsentState.pending,
+    int? playIntegrityCloudProjectNumber,
   }) async {
+    if (playIntegrityCloudProjectNumber != null &&
+        playIntegrityCloudProjectNumber <= 0) {
+      throw ArgumentError.value(playIntegrityCloudProjectNumber,
+          'playIntegrityCloudProjectNumber', 'must be a positive number');
+    }
+
     await _invokeVoid('configure', {
       'apiKey': apiKey,
       // Empty means "use the native default". Not null: the native signature
@@ -115,6 +130,10 @@ class Fingerly {
       'endpoint': endpoint,
       'platform': _platformName(),
       'consent': consent.name,
+      // Sent only when set. The iOS plugin reads arguments by name and does
+      // not look at this one.
+      if (playIntegrityCloudProjectNumber != null)
+        'playIntegrityCloudProjectNumber': playIntegrityCloudProjectNumber,
     });
 
     _consent = consent;
