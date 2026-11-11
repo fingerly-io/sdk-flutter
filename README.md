@@ -258,7 +258,7 @@ Play Console, to `load`:
 ```groovy
 // android/app/build.gradle
 dependencies {
-    implementation 'io.fingerly:fingerly-play-integrity:0.1.0'
+    implementation 'io.fingerly:fingerly-play-integrity:<same version as io.fingerly:fingerly>'
 }
 ```
 
@@ -273,9 +273,9 @@ The native SDK finds the artifact on its own; this plugin does not depend on
 it. Without the artifact the number is ignored and nothing fails, and on iOS it
 is ignored. The rest of the setup (the service account uploaded to your
 Fingerly project, the daily budget) is in the Android SDK's
-`fingerly-play-integrity/README.md`. This needs a native Android SDK that has
-`FingerlyBridge.configure` with a project number, the release after
-`io.fingerly:fingerly:0.1.0`.
+`fingerly-play-integrity/README.md`. This needs the Android SDK
+release after 0.1.0, the first whose `FingerlyBridge.configure` takes a project
+number; Gradle refuses to pair the artifact with a core of another version.
 
 To work against a local native build instead: for iOS, run
 `scripts/build-xcframework.sh` in the iOS checkout and unzip
