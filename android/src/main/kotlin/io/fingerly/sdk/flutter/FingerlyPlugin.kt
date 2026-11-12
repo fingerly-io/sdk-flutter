@@ -92,6 +92,13 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             // `fingerly.dart` always sends it, `pending` unless the app asked
             // for another state; the fallback is that same Dart default.
             consent = call.argument<String>("consent") ?: "pending",
+            // Absent unless the app passed one. The codec sends a Dart int as
+            // an Integer or a Long depending on its size, hence `Number`. The
+            // native SDK builds the provider from the optional
+            // fingerly-play-integrity artifact when the app has it, and
+            // ignores the number when it does not.
+            playIntegrityCloudProjectNumber =
+                call.argument<Number>("playIntegrityCloudProjectNumber")?.toLong() ?: 0L,
         )
         result.success(null)
     }
