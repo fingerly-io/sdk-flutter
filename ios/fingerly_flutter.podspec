@@ -14,8 +14,8 @@ Pod::Spec.new do |s|
   # Change these together with the `exact:` version in fingerly_flutter/Package.swift.
   # The checksum is the one in that release's Swift package manifest, and the
   # pin is what makes a changed file on the download host an install failure.
-  native_version = '0.1.0'
-  native_sha256  = 'c792d46d43ed21d67b7cca8731f616bfe1f7296a7a161ddaad1358b38ba096cf'
+  native_version = '0.2.0'
+  native_sha256  = 'af5be333b61f1e125fe8dbd9ce7ee32f616378bb62f5061c864e03dad7100ba5'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
   # This must differ from the native `Fingerly` pod by more than letter case.
@@ -23,7 +23,7 @@ Pod::Spec.new do |s|
   # macOS filesystem; naming this pod `fingerly` makes the native target depend on
   # itself and prevents every Flutter iOS application from compiling.
   s.name             = 'fingerly_flutter'
-  s.version          = '0.1.0'
+  s.version          = '0.2.0'
   s.summary          = 'Device intelligence and fraud signals for Flutter.'
   s.description      = <<~DESC
     The Flutter binding for the Fingerly fraud detection platform. Calls the

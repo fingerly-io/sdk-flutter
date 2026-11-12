@@ -5,7 +5,7 @@ do the collecting.
 
 ```yaml
 dependencies:
-  fingerly_flutter: ^0.1.0
+  fingerly_flutter: ^0.2.0
 ```
 
 Requires Flutter **3.10** or newer, iOS **13** or newer.
@@ -225,7 +225,7 @@ the same framework from `https://maven.fingerly.io/ios/` and checks it against a
 pinned SHA-256, so nothing depends on the CocoaPods trunk. Both need network
 access on the first build only.
 
-On Android, the plugin depends on `io.fingerly:fingerly:0.1.0` from Fingerly's
+On Android, the plugin depends on `io.fingerly:fingerly:0.2.0` from Fingerly's
 Maven repository, `https://maven.fingerly.io`, and adds that repository to the
 build itself, so no host-project repository override is required.
 
@@ -279,7 +279,7 @@ number; Gradle refuses to pair the artifact with a core of another version.
 
 To work against a local native build instead: for iOS, run
 `scripts/build-xcframework.sh` in the iOS checkout and unzip
-`build/Fingerly-0.1.0.xcframework.zip` into this package's `ios/Frameworks`
+`build/Fingerly-0.2.0.xcframework.zip` into this package's `ios/Frameworks`
 directory. For Android, build the SDK's AAR into your local Maven repository,
 which the plugin checks before Fingerly's repository:
 

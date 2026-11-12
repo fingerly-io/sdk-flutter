@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - Android: the installed-app checks (root managers, hooking frameworks, app
   cloners) move to the opt-in `io.fingerly:fingerly-app-checks` artifact from
