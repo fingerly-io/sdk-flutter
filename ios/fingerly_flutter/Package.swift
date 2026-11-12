@@ -14,7 +14,7 @@ let package = Package(
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
         // The public binary package, at the same native version the podspec
         // downloads, so both iOS paths ship the same framework.
-        .package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.1.0"),
+        .package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.2.0"),
     ],
     targets: [
         .target(

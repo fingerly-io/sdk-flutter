@@ -6,7 +6,7 @@
 // apps by bumping one dependency rather than by porting the fix a second time.
 
 group 'io.fingerly.sdk.flutter'
-version '0.1.0'
+version '0.2.0'
 
 buildscript {
     repositories {
@@ -64,5 +64,5 @@ kotlin {
 
 dependencies {
     // The SDK that does the collecting, from the repository added above.
-    implementation 'io.fingerly:fingerly:0.1.0'
+    implementation 'io.fingerly:fingerly:0.2.0'
 }

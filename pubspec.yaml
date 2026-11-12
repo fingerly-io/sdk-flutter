@@ -2,7 +2,7 @@ name: fingerly_flutter
 description: >-
   Device intelligence and fraud signals for Flutter. A binding to the native
   iOS and Android SDKs, which do the collecting.
-version: 0.1.0
+version: 0.2.0
 homepage: https://fingerly.io
 repository: https://github.com/fingerly-io/sdk-flutter
 
