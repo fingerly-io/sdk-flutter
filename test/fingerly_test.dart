@@ -962,6 +962,7 @@ void main() {
           "native_sha256  = 'c1d582eae15243fb63e3e55e68909490060f2b8232624b1025bb931c3100b4cc'",
         ),
       );
+      expect(podspec, contains("native_team_id = 'XGXX88HRR5'"));
       expect(podspec, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final spm = File('ios/fingerly_flutter/Package.swift').readAsStringSync();
