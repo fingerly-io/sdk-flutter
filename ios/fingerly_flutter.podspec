@@ -53,8 +53,11 @@ Pod::Spec.new do |s|
 
   # The SDK. Everything this plugin does is call into it. CocoaPods runs this
   # for a path pod as well, from the pod's own directory, before it looks for
-  # the framework. A framework with no stamp beside it was unpacked by hand from
-  # a local build and is left alone.
+  # the framework. An existing framework is kept only when its stamp names the
+  # pinned checksum; anything else, including a framework without a stamp, is
+  # replaced by a verified download. A local build is installed through
+  # FINGERLY_XCFRAMEWORK_PATH, which writes no stamp, so a later install without
+  # the variable replaces it.
   s.vendored_frameworks = 'Frameworks/Fingerly.xcframework'
   s.prepare_command = <<~CMD
     set -eu
@@ -75,14 +78,13 @@ Pod::Spec.new do |s|
       fi
       exit 0
     fi
-    if [ -d Frameworks/Fingerly.xcframework ]; then
-      if [ ! -f Frameworks/.sha256 ] || [ "$(cat Frameworks/.sha256)" = '#{native_sha256}' ]; then
-        exit 0
-      fi
-    fi
-    if [ -z '#{native_sha256}' ]; then
-      echo 'fingerly_flutter: no checksum is pinned for the native iOS SDK' >&2
+    if ! printf '%s' '#{native_sha256}' | grep -qE '^[0-9a-f]{64}$'; then
+      echo 'fingerly_flutter: no valid checksum is pinned for the native iOS SDK' >&2
       exit 1
+    fi
+    if [ -d Frameworks/Fingerly.xcframework ] && [ -f Frameworks/.sha256 ] \
+       && [ "$(cat Frameworks/.sha256)" = '#{native_sha256}' ]; then
+      exit 0
     fi
     work="$(mktemp -d)"
     trap 'rm -rf "$work"' EXIT
