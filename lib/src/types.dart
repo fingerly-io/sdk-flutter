@@ -129,6 +129,7 @@ enum RiskSignal {
   developerTools('developer_tools'),
   geoMismatch('geo_mismatch'),
   deviceInconsistent('device_inconsistent'),
+  reportIncomplete('report_incomplete'),
 
   // Network & IP intelligence signals
   tor('tor'),
@@ -156,6 +157,7 @@ enum RiskSignal {
   incognito('incognito'),
   badBot('bad_bot'),
   automation('automation'),
+  fetchMetadataMissing('fetch_metadata_missing'),
   antidetectBrowser('antidetect_browser'),
   virtualMachine('virtual_machine'),
   fingerprintSuppressed('fingerprint_suppressed'),
@@ -173,11 +175,12 @@ enum RiskSignal {
   mitmAttack('mitm_attack'),
   activeCall('active_call'),
   attestationMissing('attestation_missing'),
+  attestationDowngrade('attestation_downgrade'),
   appAttestKeyChurn('app_attest_key_churn'),
   playDeviceIntegrityFailed('play_device_integrity_failed'),
   playAppUnrecognized('play_app_unrecognized'),
   attestationFailed('attestation_failed'),
-  reportIncomplete('report_incomplete'),
+  probeErrors('probe_errors'),
   customRootCa('custom_root_ca'),
   secondaryUserProfile('secondary_user_profile');
 
