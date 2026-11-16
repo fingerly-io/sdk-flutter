@@ -130,6 +130,7 @@ enum RiskSignal {
   geoMismatch('geo_mismatch'),
   deviceInconsistent('device_inconsistent'),
   reportIncomplete('report_incomplete'),
+  fingerprintSuppressed('fingerprint_suppressed'),
 
   // Network & IP intelligence signals
   tor('tor'),
@@ -160,7 +161,6 @@ enum RiskSignal {
   fetchMetadataMissing('fetch_metadata_missing'),
   antidetectBrowser('antidetect_browser'),
   virtualMachine('virtual_machine'),
-  fingerprintSuppressed('fingerprint_suppressed'),
   privacySettings('privacy_settings'),
   embeddedWebView('embedded_web_view'),
   remoteControl('remote_control'),
