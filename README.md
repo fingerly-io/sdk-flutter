@@ -236,10 +236,10 @@ Core `io.fingerly:fingerly:0.3.0` declares zero `<queries>` entries in its
 manifest because Google Play treats installed-app visibility as personal and
 sensitive data. If your app justifies package visibility for the 17 root
 managers, hooking frameworks and dual-space cloners in Play review, add
-`io.fingerly:fingerly-app-checks:0.3.0` to your Android app module, register
-`FingerlyBridge.setAppChecks(FingerlyAppChecks())` in your `MainActivity` or
-`Application`, and declare "App activity: Installed apps" on the Data safety
-form:
+`io.fingerly:fingerly-app-checks:0.3.0` to your Android app module and declare
+"App activity: Installed apps" on the Data safety form. The plugin finds the
+artifact and registers its provider on every `Fingerly.load`, so there is no
+native code to write:
 
 ```groovy
 // android/app/build.gradle
@@ -248,39 +248,22 @@ dependencies {
 }
 ```
 
-```kotlin
-// android/app/src/main/kotlin/.../MainActivity.kt
-import io.fingerly.sdk.appchecks.FingerlyAppChecks
-import io.fingerly.sdk.bridge.FingerlyBridge
-
-FingerlyBridge.setAppChecks(FingerlyAppChecks())
-```
-
 Without it, the report carries no installed-app fields and nothing about other
 apps leaves the device; whether the app itself runs inside a cloner is still
 reported.
 
-**Play Integrity (Android, optional — `io.fingerly:fingerly-play-integrity:0.3.0`).**
+**Play Integrity (Android, optional: `io.fingerly:fingerly-play-integrity:0.3.0`).**
 To add Google Play Integrity Standard tokens bound to the `v: 3`
 `statementDigest` (ADR 0026), add `io.fingerly:fingerly-play-integrity:0.3.0` to
-your Android app module, register
-`FingerlyBridge.setPlayIntegrity(FingerlyPlayIntegrity())` in your Android host,
-and pass your Google Cloud project number (the one linked in Play Console) to
-`Fingerly.load`:
+your Android app module and pass your Google Cloud project number (the one
+linked in Play Console) to `Fingerly.load`. The plugin finds the artifact and
+registers its provider with that project number:
 
 ```groovy
 // android/app/build.gradle
 dependencies {
     implementation 'io.fingerly:fingerly-play-integrity:0.3.0'
 }
-```
-
-```kotlin
-// android/app/src/main/kotlin/.../MainActivity.kt
-import io.fingerly.sdk.bridge.FingerlyBridge
-import io.fingerly.sdk.playintegrity.FingerlyPlayIntegrity
-
-FingerlyBridge.setPlayIntegrity(FingerlyPlayIntegrity())
 ```
 
 ```dart
@@ -291,8 +274,15 @@ final fingerly = await Fingerly.load(
 );
 ```
 
-Without the provider the project number is ignored and nothing fails, and on iOS
-it is safely ignored.
+A provider of your own, registered from native code with
+`FingerlyBridge.setPlayIntegrity(provider)` before `Fingerly.load`, is used in
+place of the artifact's. On Android, a project number with neither is a
+configuration error:
+`Fingerly.load` throws a `FingerlyException` (platform code
+`play_integrity_unavailable`, "playIntegrityCloudProjectNumber was set but the
+io.fingerly:fingerly-play-integrity artifact is not on the classpath") and
+leaves the previous configuration in place. Without a project number, Play
+Integrity is off and nothing fails. On iOS the project number is ignored.
 
 To work against a local native build instead: for iOS, run
 `scripts/build-xcframework.sh` in the iOS checkout and set

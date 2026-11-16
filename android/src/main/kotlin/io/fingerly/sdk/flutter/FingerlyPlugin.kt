@@ -84,6 +84,34 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             return
         }
 
+        // Absent unless the app passed one. The codec sends a Dart int as an
+        // Integer or a Long depending on its size, hence `Number`. Null (or
+        // <= 0) leaves Play Integrity off.
+        val projectNumber = call.argument<Number>("playIntegrityCloudProjectNumber")
+            ?.toLong()
+            ?.takeIf { it > 0L }
+
+        // A project number with no provider to use it would leave Play
+        // Integrity off without a word, so the configuration is refused and
+        // nothing is changed.
+        val playIntegrity = OptionalProviders.playIntegrity
+        OptionalProviders.playIntegrityError(
+            projectNumber,
+            playIntegrity,
+            registeredByHand = FingerlyBridge.hasPlayIntegrityProvider(),
+        )?.let { message ->
+            result.error(OptionalProviders.PLAY_INTEGRITY_UNAVAILABLE, message, null)
+            return
+        }
+
+        // The optional providers are registered whenever the app links their
+        // artifacts, as the React Native module does. A Play Integrity
+        // provider the app registered by hand is kept.
+        OptionalProviders.appChecks?.let(FingerlyBridge::setAppChecks)
+        if (projectNumber != null && playIntegrity != null && !FingerlyBridge.hasPlayIntegrityProvider()) {
+            FingerlyBridge.setPlayIntegrity(playIntegrity, projectNumber)
+        }
+
         FingerlyBridge.configure(
             context = context,
             apiKey = call.argument<String>("apiKey") ?: "",
@@ -92,13 +120,7 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             // `fingerly_flutter.dart` always sends it, `pending` unless the app
             // asked for another state; the fallback is that same Dart default.
             consent = call.argument<String>("consent") ?: "pending",
-            // Absent unless the app passed one. The codec sends a Dart int as
-            // an Integer or a Long depending on its size, hence `Number`. Null
-            // (or <= 0) leaves Play Integrity off.
-            playIntegrityCloudProjectNumber =
-                call.argument<Number>("playIntegrityCloudProjectNumber")
-                    ?.toLong()
-                    ?.takeIf { it > 0L },
+            playIntegrityCloudProjectNumber = projectNumber,
         )
         result.success(null)
     }
