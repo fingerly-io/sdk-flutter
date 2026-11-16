@@ -6,7 +6,7 @@
 // apps by bumping one dependency rather than by porting the fix a second time.
 
 group 'io.fingerly.sdk.flutter'
-version '0.2.0'
+version '0.3.0'
 
 buildscript {
     repositories {
@@ -18,13 +18,20 @@ buildscript {
     }
 }
 
+repositories {
+    mavenLocal()
+    google()
+    mavenCentral()
+    maven { url 'https://maven.fingerly.io' }
+}
+
 rootProject.allprojects {
     repositories {
+        // Ahead of remote repositories, so that a local native SDK build in
+        // ~/.m2/repository is resolved first without hitting the network.
+        mavenLocal()
         google()
         mavenCentral()
-        // Ahead of Fingerly's own repository, so that a contributor's local
-        // build is found without that host having to answer.
-        mavenLocal()
         // Where the native SDK, io.fingerly:fingerly, comes from.
         maven { url 'https://maven.fingerly.io' }
     }
@@ -64,5 +71,5 @@ kotlin {
 
 dependencies {
     // The SDK that does the collecting, from the repository added above.
-    implementation 'io.fingerly:fingerly:0.2.0'
+    implementation 'io.fingerly:fingerly:0.3.0'
 }

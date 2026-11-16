@@ -5,7 +5,7 @@ do the collecting.
 
 ```yaml
 dependencies:
-  fingerly_flutter: ^0.2.0
+  fingerly_flutter: ^0.3.0
 ```
 
 Requires Flutter **3.10** or newer, iOS **13** or newer.
@@ -36,22 +36,20 @@ fields are `null`, exactly as on a check nobody scored: an app cannot tell which
 it was, so read `null` as "no answer here", never as clean. The signals behind a
 score never reach the device; read them on your backend, through the server-side
 event read by `requestId` or webhooks, or in the dashboard.
-`visitorConfidence`, `visitorIsNew`,
-`identifiable` and `duplicate` can be `null` when the server did not say, which
-is not the same as `0` or `false`. Send the `requestId` and
-`visitorId` to your own backend with the request they belong to, and let your
-backend decide: **the score in your hand came from a device you do not
-control**, and an app that branches on it locally is an app whose branch can be
-patched out.
+`visitorConfidence` can be `null` when omitted, and when `identifiable` is
+`false`, `visitorId` is `""` and `visitorIsNew` is `false` (Option B). Send the
+`requestId` and `visitorId` to your own backend with the request they belong to,
+and let your backend decide: **the score in your hand came from a device you do
+not control**, and an app that branches on it locally is an app whose branch can
+be patched out.
 
-Pass `submit: false` to collect without sending anything. Only `report` is
-filled in then: the server's fields stay empty and `suspectScore` stays null.
+Call `collect()` to inspect the raw client report locally without sending
+anything to the server.
 
 Pass `automatic: true` for a call your app makes on its own rather than in
 answer to the user: on start, on a timer, on returning to the foreground. It
 joins an identification already in flight instead of starting another, and
-waits out a transient failure instead of repeating it at once. On Android it
-has no effect until the native Android SDK supports it.
+waits out a transient failure instead of repeating it at once.
 
 ## Consent
 
@@ -119,13 +117,18 @@ that refusal should never be seen.
 await Fingerly.deleteStoredIdentity();
 ```
 
-Deletes the install record the native SDK keeps on the device, including the
-install ID the server recognises it by. Call it when a user asks for their data
-to be erased or deletes their account. It needs no `load` and no consent, and
-sends nothing, and completes once no record remains, including when there was
-none. It throws a `FingerlyException` when the delete fails. The next
-identification made with consent starts a new record; to stop identifying as
-well, set consent to `ConsentState.denied` first.
+**Strictly for user-initiated GDPR / privacy erasure and account deletion.**
+Atomically deletes both the local `install_id` record and local hardware
+attestation key state (`Application Support/io.fingerly.sdk/` container storage
+and App Attest key state on iOS; the `install_id` record and persistent
+`AndroidKeyStore` v3 ECDSA signing key on Android). Do **not** call it during
+routine sign-out or session rotation, as unnecessary resets force hardware key
+re-attestation and repeated `install_id` churn. It needs no `load` and no
+consent, sends nothing over the network, and completes once no local identity or
+key state remains, including when there was none. It throws a
+`FingerlyException` when the delete fails. The next identification made with
+consent starts an unlinked record; to stop identifying as well, set consent to
+`ConsentState.denied` first.
 
 ## This package collects nothing
 
@@ -191,8 +194,7 @@ full-jitter backoff before it ever throws.
 
 When the server asked for a pause with `Retry-After`, the exception carries it
 as `retryAfter`, a `Duration`. Wait at least that long before identifying
-again. It is null when the response named no wait, and on Android until the
-native Android bridge passes the header on.
+again. It is null when the response named no wait.
 
 A call refused for want of consent throws `FingerlyConsentException`, a
 subclass of `FingerlyException` with `code` `consent_required`, a `state`, and
@@ -225,7 +227,7 @@ the same framework from `https://maven.fingerly.io/ios/` and checks it against a
 pinned SHA-256, so nothing depends on the CocoaPods trunk. Both need network
 access on the first build only.
 
-On Android, the plugin depends on `io.fingerly:fingerly:0.2.0` from Fingerly's
+On Android, the plugin depends on `io.fingerly:fingerly:0.3.0` from Fingerly's
 Maven repository, `https://maven.fingerly.io`, and adds that repository to the
 build itself, so no host-project repository override is required.
 
@@ -278,10 +280,11 @@ release after 0.1.0, the first whose `FingerlyBridge.configure` takes a project
 number; Gradle refuses to pair the artifact with a core of another version.
 
 To work against a local native build instead: for iOS, run
-`scripts/build-xcframework.sh` in the iOS checkout and unzip
-`build/Fingerly-0.2.0.xcframework.zip` into this package's `ios/Frameworks`
-directory. For Android, build the SDK's AAR into your local Maven repository,
-which the plugin checks before Fingerly's repository:
+`scripts/build-xcframework.sh` in the iOS checkout and set
+`FINGERLY_XCFRAMEWORK_PATH` to `build/Fingerly.xcframework` (or
+`build/Fingerly-0.3.0.xcframework.zip`), or unzip it into this package's
+`ios/Frameworks` directory. For Android, build the SDK's AAR into your local
+Maven repository, which the plugin checks before Fingerly's repository:
 
 ```
 cd ../android && ./gradlew :fingerly:publishToMavenLocal

@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Nothing of its own. The two install-time permissions the SDK needs, and the
-    `<queries>` block it uses instead of QUERY_ALL_PACKAGES, are merged in from
-    the native SDK's manifest — which is the point of depending on it rather
-    than restating it here, where the two copies would drift.
+    Nothing of its own. The install-time permissions the SDK needs (`INTERNET`,
+    `ACCESS_NETWORK_STATE`) are merged in from `io.fingerly:fingerly`'s manifest;
+    core `io.fingerly:fingerly` declares zero `<queries>` entries.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" />

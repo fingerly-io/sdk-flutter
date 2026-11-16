@@ -89,26 +89,29 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
             apiKey = call.argument<String>("apiKey") ?: "",
             endpoint = call.argument<String>("endpoint") ?: "",
             platform = call.argument<String>("platform") ?: "flutter-android",
-            // `fingerly.dart` always sends it, `pending` unless the app asked
-            // for another state; the fallback is that same Dart default.
+            // `fingerly_flutter.dart` always sends it, `pending` unless the app
+            // asked for another state; the fallback is that same Dart default.
             consent = call.argument<String>("consent") ?: "pending",
             // Absent unless the app passed one. The codec sends a Dart int as
-            // an Integer or a Long depending on its size, hence `Number`. The
-            // native SDK builds the provider from the optional
-            // fingerly-play-integrity artifact when the app has it, and
-            // ignores the number when it does not.
+            // an Integer or a Long depending on its size, hence `Number`. Null
+            // (or <= 0) leaves Play Integrity off.
             playIntegrityCloudProjectNumber =
-                call.argument<Number>("playIntegrityCloudProjectNumber")?.toLong() ?: 0L,
+                call.argument<Number>("playIntegrityCloudProjectNumber")
+                    ?.toLong()
+                    ?.takeIf { it > 0L },
         )
         result.success(null)
     }
 
     /**
-     * Deletes the install record, for a user's erasure or account deletion.
+     * Atomically deletes the local `install_id` record and persistent
+     * `AndroidKeyStore` v3 attestation signing key, strictly for user-initiated
+     * GDPR/privacy erasure or account deletion.
      *
      * Needs neither `configure` nor consent, only a context. Done on a thread of
      * its own because this method is called on the platform thread and the
-     * delete is disk I/O, which StrictMode rightly objects to there.
+     * delete performs file and Keystore I/O, which StrictMode rightly objects to
+     * there.
      */
     private fun deleteStoredIdentity(result: Result) {
         val context = this.context
@@ -138,12 +141,11 @@ class FingerlyPlugin : FlutterPlugin, MethodCallHandler {
     private fun identify(call: MethodCall, result: Result) {
         FingerlyBridge.identify(
             tag = call.argument<String>("tag"),
-            // Defaulting to true: the Dart signature defaults to submitting, and
-            // an argument lost in transit must not silently turn a submission
-            // into a collection the caller then waits for a request id from.
+            // Defaulting to true: `identify()` always submits, and an argument
+            // lost in transit must not silently turn a submission into an
+            // offline collection.
             submit = call.argument<Boolean>("submit") ?: true,
-            // `automatic` is not read: the native Android bridge has no such
-            // option yet, so every call is identified as a user's call.
+            automatic = call.argument<Boolean>("automatic") ?: false,
             callback = settle(result),
         )
     }

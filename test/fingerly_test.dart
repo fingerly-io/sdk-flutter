@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:fingerly_flutter/fingerly_flutter.dart';
 import 'package:flutter/foundation.dart';
@@ -8,14 +9,19 @@ import 'package:flutter_test/flutter_test.dart';
 const _channel = MethodChannel('io.fingerly.sdk/flutter');
 
 Map<String, Object?> _report() => {
-      'schema': 1,
+      'schema': 2,
       'budget_ms': 1200,
       'elapsed_ms': 42,
       'sources': {
-        'device': {
+        'identity': {
+          'status': 'ok',
+          'ms': 1,
+          'value': {'install_id': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'},
+        },
+        'hardware': {
           'status': 'ok',
           'ms': 2,
-          'value': {'platform': 'ios'},
+          'value': {'machine': 'iPhone16,1', 'gpu_family_max': 9},
         },
         'attest': {
           'status': 'unsupported',
@@ -24,8 +30,30 @@ Map<String, Object?> _report() => {
         },
       },
       'integrity': {
-        'patched_natives': <String>[],
-        'lies': <Object?>[],
+        'native_symbols': [
+          {
+            'symbol': 'lstat',
+            'image': 'libsystem_kernel.dylib',
+            'tree': 'dyld_shared_cache',
+            'prologue': 'd503237f',
+          },
+        ],
+        'objc_methods': [
+          {
+            'method': 'NSFileManager fileExistsAtPath:',
+            'image': 'Foundation',
+            'tree': 'dyld_shared_cache',
+            'isa_swizzled': false,
+            'msg_forward': false,
+          },
+        ],
+        'got_slots': [
+          {
+            'symbol': 'lstat',
+            'image': 'libsystem_kernel.dylib',
+            'tree': 'dyld_shared_cache',
+          },
+        ],
       },
     };
 
@@ -36,7 +64,7 @@ Map<String, Object?> _identifyResult() => {
       'visitorConfidence': 92,
       'identifiable': true,
       'duplicate': false,
-      'state': 'accepted',
+      'state': 'enriched',
       'reason': '',
       'suspectScore': 16,
       'suspectLevel': 'medium',
@@ -54,29 +82,62 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  test('configure names the native platform and forwards configuration',
-      () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    MethodCall? received;
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      received = call;
-      return null;
+  group('configure & FingerlyConfig', () {
+    test('load names the native platform and forwards configuration on iOS',
+        () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        received = call;
+        return null;
+      });
+
+      await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile',
+        endpoint: 'http://localhost:9000',
+      );
+
+      expect(received?.method, 'configure');
+      expect(received?.arguments, {
+        'apiKey': 'fly_pk_development_mobile',
+        'endpoint': 'http://localhost:9000',
+        'platform': 'flutter-ios',
+        'consent': 'pending',
+      });
     });
 
-    await Fingerly.load(
-        apiKey: 'fly_pk_development_mobile', endpoint: 'http://localhost:9000');
+    test('configure(FingerlyConfig) forwards platform and consent on Android',
+        () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        received = call;
+        return null;
+      });
 
-    expect(received?.method, 'configure');
-    expect(received?.arguments, {
-      'apiKey': 'fly_pk_development_mobile',
-      'endpoint': 'http://localhost:9000',
-      'platform': 'flutter-ios',
-      'consent': 'pending',
+      final client = await Fingerly.configure(
+        const FingerlyConfig(
+          apiKey: 'fly_pk_development_mobile',
+          endpoint: 'https://edge.example.com',
+          consent: ConsentState.granted,
+          playIntegrityCloudProjectNumber: 987654321098,
+        ),
+      );
+
+      expect(client.consent, ConsentState.granted);
+      expect(received?.method, 'configure');
+      expect(received?.arguments, {
+        'apiKey': 'fly_pk_development_mobile',
+        'endpoint': 'https://edge.example.com',
+        'platform': 'flutter-android',
+        'consent': 'granted',
+        'playIntegrityCloudProjectNumber': 987654321098,
+      });
     });
   });
 
   group('Play Integrity', () {
-    test('forwards the project number to the native side', () async {
+    test('forwards playIntegrityCloudProjectNumber on Android', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       MethodCall? received;
       messenger.setMockMethodCallHandler(_channel, (call) async {
@@ -85,8 +146,9 @@ void main() {
       });
 
       await Fingerly.load(
-          apiKey: 'fly_pk_development_mobile',
-          playIntegrityCloudProjectNumber: 123456789012);
+        apiKey: 'fly_pk_development_mobile',
+        playIntegrityCloudProjectNumber: 123456789012,
+      );
 
       expect(received?.arguments, {
         'apiKey': 'fly_pk_development_mobile',
@@ -97,8 +159,46 @@ void main() {
       });
     });
 
-    test('refuses a number that is not a project before configuring',
+    test('omits playIntegrityCloudProjectNumber when null', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        received = call;
+        return null;
+      });
+
+      await Fingerly.configure(
+        const FingerlyConfig(apiKey: 'fly_pk_development_mobile'),
+      );
+
+      final args = received?.arguments as Map<Object?, Object?>;
+      expect(args.containsKey('playIntegrityCloudProjectNumber'), isFalse);
+    });
+
+    test('allows passing playIntegrityCloudProjectNumber on iOS without error',
         () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        received = call;
+        return null;
+      });
+
+      await Fingerly.load(
+        apiKey: 'fly_pk_development_mobile',
+        playIntegrityCloudProjectNumber: 123456789012,
+      );
+
+      expect(received?.arguments, {
+        'apiKey': 'fly_pk_development_mobile',
+        'endpoint': '',
+        'platform': 'flutter-ios',
+        'consent': 'pending',
+        'playIntegrityCloudProjectNumber': 123456789012,
+      });
+    });
+
+    test('refuses non-positive project numbers before configuring', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       final calls = <MethodCall>[];
       messenger.setMockMethodCallHandler(_channel, (call) async {
@@ -106,11 +206,21 @@ void main() {
         return null;
       });
 
-      for (final bad in [0, -1]) {
+      for (final bad in [0, -1, -999]) {
         await expectLater(
           Fingerly.load(
+            apiKey: 'fly_pk_development_mobile',
+            playIntegrityCloudProjectNumber: bad,
+          ),
+          throwsArgumentError,
+        );
+        await expectLater(
+          Fingerly.configure(
+            FingerlyConfig(
               apiKey: 'fly_pk_development_mobile',
-              playIntegrityCloudProjectNumber: bad),
+              playIntegrityCloudProjectNumber: bad,
+            ),
+          ),
           throwsArgumentError,
         );
       }
@@ -119,10 +229,6 @@ void main() {
   });
 
   group('consent', () {
-    /// A native side that keeps its own consent, as `FingerlyBridge` does, and
-    /// refuses `identify` and `collect` with `consent_required` until it is
-    /// granted. `withDetails` imitates the iOS plugin, which sends the state in
-    /// `details`; the Android plugin sends a code and a message only.
     List<MethodCall> installGatedNative({bool withDetails = true}) {
       final calls = <MethodCall>[];
       var consent = 'pending';
@@ -224,7 +330,6 @@ void main() {
           apiKey: 'fly_pk_development_mobile', consent: ConsentState.pending);
 
       final pending = client.setConsent(ConsentState.denied);
-      // Changed before the native side has answered.
       expect(client.consent, ConsentState.denied);
       await pending;
 
@@ -286,162 +391,285 @@ void main() {
     });
   });
 
-  test('identify forwards options and decodes the complete native result',
-      () async {
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      if (call.method == 'configure') return null;
-      expect(call.method, 'identify');
-      expect(call.arguments,
-          {'tag': 'checkout', 'submit': true, 'automatic': false});
-      return jsonEncode(_identifyResult());
-    });
+  group('v3 IdentifyResult & Option B contract', () {
+    test('identify forwards options and decodes the complete native result',
+        () async {
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        if (call.method == 'configure') return null;
+        expect(call.method, 'identify');
+        expect(call.arguments, {
+          'tag': 'checkout',
+          'submit': true,
+          'automatic': false,
+        });
+        return jsonEncode(_identifyResult());
+      });
 
-    final client = await Fingerly.load(
-        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
-    final result = await client.identify(tag: 'checkout');
+      final client = await Fingerly.load(
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+      final result = await client.identify(tag: 'checkout');
 
-    expect(result.requestId, 'req_123');
-    expect(result.visitorId, 'visitor_123');
-    expect(result.suspectScore, 16);
-    expect(result.suspectLevel, 'medium');
-    expect(result.report.sources['device']?.status, SignalStatus.ok);
-    expect(result.report.sources['attest']?.reason, 'simulator');
-  });
-
-  test('identify(submit: false) surfaces the raw report and nothing else',
-      () async {
-    // Forged: a native side that fills the server's fields anyway must not be
-    // able to make an unsent check look answered.
-    final forged = _identifyResult()..['verdicts'] = {'jailbreak': true};
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      if (call.method == 'configure') return null;
+      expect(result.requestId, 'req_123');
+      expect(result.visitorId, 'visitor_123');
+      expect(result.visitorIsNew, isTrue);
+      expect(result.visitorConfidence, 92);
+      expect(result.identifiable, isTrue);
+      expect(result.duplicate, isFalse);
+      expect(result.state, 'enriched');
+      expect(result.suspectScore, 16);
+      expect(result.suspectLevel, 'medium');
+      expect(result.triggers, isNull);
+      expect(result.report.schema, 2);
+      expect(result.report.sources['hardware']?.status, SignalStatus.ok);
+      expect(result.report.sources['attest']?.reason, 'simulator');
+      expect(result.report.integrity.nativeSymbols.single.symbol, 'lstat');
       expect(
-          call.arguments, {'tag': null, 'submit': false, 'automatic': false});
-      return jsonEncode(forged);
+        result.report.integrity.objcMethods.single.method,
+        'NSFileManager fileExistsAtPath:',
+      );
+      expect(result.report.integrity.gotSlots?.single.symbol, 'lstat');
     });
 
-    final client = await Fingerly.load(
-        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
-    final result = await client.identify(submit: false);
+    test(
+        'Option B: visitorId is empty and visitorIsNew is false when identifiable is false',
+        () {
+      final unidentifiable = IdentifyResult.fromJson({
+        'requestId': 'req_unid_1',
+        'identifiable': false,
+        'visitorId': '',
+        'visitorIsNew': false,
+        'visitorConfidence': 0,
+        'duplicate': false,
+        'state': 'enriched',
+        'suspectScore': 15,
+        'suspectLevel': 'medium',
+        'report': _report(),
+      });
 
-    expect(result.report.sources.keys, ['device', 'attest']);
-    expect(result.requestId, '');
-    expect(result.visitorId, '');
-    expect(result.visitorConfidence, isNull);
-    expect(result.visitorIsNew, isNull);
-    expect(result.identifiable, isNull);
-    expect(result.duplicate, isNull);
-    expect(result.suspectScore, isNull);
-    expect(result.suspectLevel, isNull);
-    expect(result.state, '');
-    expect(result.reason, '');
-  });
+      expect(unidentifiable.identifiable, isFalse);
+      expect(unidentifiable.visitorId, '');
+      expect(unidentifiable.visitorIsNew, isFalse);
+      expect(unidentifiable.visitorConfidence, 0);
 
-  test('identify(submit: false) refuses an answer with no readable report',
-      () async {
-    for (final answer in <Object?>[
-      <String, Object?>{},
-      {'report': null},
-      {'report': 'text'},
-      {
-        'report': [1]
-      },
-    ]) {
-      messenger.setMockMethodCallHandler(
-        _channel,
-        (call) async => call.method == 'configure' ? null : jsonEncode(answer),
-      );
+      // Even if a stale or malformed payload supplied a non-empty visitorId or
+      // visitorIsNew: true while identifiable == false, Option B enforces "".
+      final enforced = IdentifyResult.fromJson({
+        'request_id': 'req_unid_2',
+        'identifiable': false,
+        'visitor_id': 'stale_visitor',
+        'visitor_is_new': true,
+        'visitor_confidence': 0,
+        'state': 'enriched',
+      });
+
+      expect(enforced.requestId, 'req_unid_2');
+      expect(enforced.identifiable, isFalse);
+      expect(enforced.visitorId, '');
+      expect(enforced.visitorIsNew, isFalse);
+      expect(enforced.visitorConfidence, 0);
+    });
+
+    test('visitorIsNew is always false whenever visitorId is empty', () {
+      final withheld = IdentifyResult.fromJson({
+        'requestId': 'req_webview',
+        'identifiable': true,
+        'visitorId': '',
+        'visitorIsNew': true,
+        'visitorConfidence': 0,
+        'state': 'enriched',
+      });
+
+      expect(withheld.identifiable, isTrue);
+      expect(withheld.visitorId, '');
+      expect(withheld.visitorIsNew, isFalse);
+    });
+
+    test('duplicate is a non-nullable bool preserving replayed verdicts', () {
+      final replayed = IdentifyResult.fromJson({
+        'requestId': 'req_dup',
+        'visitorId': '',
+        'identifiable': false,
+        'duplicate': true,
+        'state': 'enriched',
+      });
+      final fresh = IdentifyResult.fromJson({'requestId': 'req_fresh'});
+
+      expect(replayed.duplicate, isTrue);
+      expect(replayed.visitorId, '');
+      expect(replayed.visitorIsNew, isFalse);
+      expect(fresh.duplicate, isFalse);
+    });
+
+    test('audience-gated suspectScore and suspectLevel stay null, never 0',
+        () async {
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        if (call.method == 'configure') return null;
+        return jsonEncode(_identifyResult()
+          ..['suspectScore'] = null
+          ..['suspectLevel'] = null);
+      });
       final client = await Fingerly.load(
           apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
 
-      await expectLater(
-        client.identify(submit: false),
-        throwsA(isA<FingerlyException>()),
-        reason: '$answer',
-      );
-    }
-  });
+      final result = await client.identify();
 
-  test('a stale native signal list or verdict never reaches the Dart result',
-      () {
-    for (final stale in <Object?>[
-      [
-        {'signal': 'simulator', 'weight': 16, 'confidence': 'high'},
-      ],
-      'not-a-list',
-      null,
-      7,
-    ]) {
-      final result = IdentifyResult.fromJson(_identifyResult()
-        ..['triggers'] = stale
-        ..['futureMember'] = {'nested': true}
-        ..['verdicts'] = {
-          'jailbreak': {'value': true, 'confidence': 'high', 'reasons': []},
-        });
+      expect(result.suspectScore, isNull);
+      expect(result.suspectLevel, isNull);
 
-      expect(result.suspectScore, 16, reason: '$stale');
-      expect(() => (result as dynamic).triggers, throwsNoSuchMethodError);
-      expect(() => (result as dynamic).verdicts, throwsNoSuchMethodError);
-    }
-  });
+      final zeroScored = IdentifyResult.fromJson(_identifyResult()
+        ..['suspectScore'] = 0
+        ..['suspectLevel'] = 'low');
+      expect(zeroScored.suspectScore, 0);
+      expect(zeroScored.suspectLevel, 'low');
 
-  test('a score reads from an answer that has no signals', () {
-    final result = IdentifyResult.fromJson(_identifyResult());
-
-    expect(result.suspectScore, 16);
-    expect(result.suspectLevel, 'medium');
-  });
-
-  test('an answer with neither score nor signals reads as no answer', () {
-    final result = IdentifyResult.fromJson(_identifyResult()
-      ..remove('suspectScore')
-      ..remove('suspectLevel'));
-
-    expect(result.requestId, 'req_123');
-    expect(result.visitorId, 'visitor_123');
-    expect(result.suspectScore, isNull);
-    expect(result.suspectLevel, isNull);
-  });
-
-  test('a null score crosses the channel as null, not 0 or an empty string',
-      () async {
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      if (call.method == 'configure') return null;
-      return jsonEncode(_identifyResult()
+      // suspectLevel is always null whenever suspectScore is null.
+      final mismatched = IdentifyResult.fromJson(_identifyResult()
         ..['suspectScore'] = null
-        ..['suspectLevel'] = null);
-    });
-    final client = await Fingerly.load(
-        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
-
-    final result = await client.identify();
-
-    expect(result.suspectScore, isNull);
-    expect(result.suspectLevel, isNull);
-  });
-
-  test('a null score stays null when the server did not score', () {
-    final result = IdentifyResult.fromJson(_identifyResult()
-      ..['suspectScore'] = null
-      ..['suspectLevel'] = null);
-
-    expect(result.suspectScore, isNull);
-    expect(result.suspectLevel, isNull);
-  });
-
-  test('identify forwards automatic', () async {
-    Object? arguments;
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      if (call.method == 'configure') return null;
-      arguments = call.arguments;
-      return jsonEncode(_identifyResult());
+        ..['suspectLevel'] = 'low');
+      expect(mismatched.suspectScore, isNull);
+      expect(mismatched.suspectLevel, isNull);
     });
 
-    final client = await Fingerly.load(
-        apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
-    await client.identify(automatic: true);
+    test('decodes v3 triggers and maps canonical RiskSignal values', () {
+      final result = IdentifyResult.fromJson(_identifyResult()
+        ..['triggers'] = [
+          {
+            'signal': 'attestation_failed',
+            'group': 'attestation_failed',
+            'weight': 30,
+            'confidence': 'high',
+          },
+          {
+            'signal': 'custom_root_ca',
+            'group': 'custom_root_ca',
+            'weight': 0,
+            'confidence': 'medium',
+          },
+          {
+            'signal': 'future_server_signal',
+            'weight': 5,
+          },
+          'malformed-entry',
+          {'weight': 10},
+        ]);
 
-    expect(arguments, {'tag': null, 'submit': true, 'automatic': true});
+      expect(result.triggers, hasLength(3));
+      expect(result.triggers![0].signal, 'attestation_failed');
+      expect(result.triggers![0].riskSignal, RiskSignal.attestationFailed);
+      expect(result.triggers![0].weight, 30);
+      expect(result.triggers![0].confidence, 'high');
+      expect(result.triggers![1].riskSignal, RiskSignal.customRootCa);
+      expect(result.triggers![1].weight, 0);
+      expect(result.triggers![2].signal, 'future_server_signal');
+      expect(result.triggers![2].riskSignal, isNull);
+    });
+
+    test('enumerates all orthogonal v3 risk signals', () {
+      const expectedSignals = [
+        'high_activity',
+        'tampering',
+        'device_farm',
+        'developer_tools',
+        'geo_mismatch',
+        'device_inconsistent',
+        'tor',
+        'proxy',
+        'residential_proxy',
+        'residential_proxy_low_confidence',
+        'residential_proxy_medium_confidence',
+        'residential_proxy_high_confidence',
+        'vpn_public',
+        'vpn_timezone',
+        'vpn_relay',
+        'vpn_mobile',
+        'vpn_os_mismatch',
+        'vpn_low_confidence',
+        'vpn_medium_confidence',
+        'vpn_high_confidence',
+        'ip_blocklist_email_spam',
+        'ip_blocklist_attack_source',
+        'ip_abuser',
+        'datacenter_ip',
+        'bogon_ip',
+        'anycast_ip',
+        'incognito',
+        'bad_bot',
+        'automation',
+        'antidetect_browser',
+        'virtual_machine',
+        'fingerprint_suppressed',
+        'privacy_settings',
+        'embedded_web_view',
+        'remote_control',
+        'emulator',
+        'root_apps',
+        'app_cloner',
+        'jailbreak',
+        'simulator',
+        'frida',
+        'mitm_attack',
+        'active_call',
+        'attestation_missing',
+        'app_attest_key_churn',
+        'play_device_integrity_failed',
+        'play_app_unrecognized',
+        'attestation_failed',
+        'report_incomplete',
+        'custom_root_ca',
+        'secondary_user_profile',
+      ];
+
+      expect(
+        RiskSignal.values.map((signal) => signal.wire).toList(),
+        expectedSignals,
+      );
+      for (final wire in expectedSignals) {
+        expect(RiskSignal.tryParse(wire)?.wire, wire);
+      }
+      expect(RiskSignal.tryParse('unknown_signal'), isNull);
+      expect(RiskSignal.tryParse(42), isNull);
+    });
+
+    test('identify forwards automatic and removes retired submit/tiers options',
+        () async {
+      Object? arguments;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        if (call.method == 'configure') return null;
+        arguments = call.arguments;
+        return jsonEncode(_identifyResult());
+      });
+
+      final client = await Fingerly.load(
+          apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
+      await client.identify(automatic: true);
+
+      expect(arguments, {'tag': null, 'submit': true, 'automatic': true});
+    });
+
+    test('decodes Android schema 2 native_methods integrity observations', () {
+      final report = SignalReport.fromJson({
+        'schema': 2,
+        'budget_ms': 1200,
+        'elapsed_ms': 38,
+        'sources': const <String, Object?>{},
+        'integrity': {
+          'native_methods': [
+            {
+              'method': 'java.io.File!exists',
+              'declared': 1,
+              'native': 1,
+            },
+          ],
+        },
+      });
+
+      expect(report.schema, 2);
+      expect(
+          report.integrity.nativeMethods.single.method, 'java.io.File!exists');
+      expect(report.integrity.nativeMethods.single.declared, 1);
+      expect(report.integrity.nativeMethods.single.native, 1);
+      expect(report.integrity.gotSlots, isNull);
+    });
   });
 
   test('collect and nativeVersion use their dedicated bridge methods',
@@ -451,7 +679,7 @@ void main() {
         (call) async => switch (call.method) {
               'configure' => null,
               'collect' => jsonEncode(_report()),
-              'sdkVersion' => '0.1.0',
+              'sdkVersion' => '0.3.0',
               _ => throw MissingPluginException(),
             });
 
@@ -459,12 +687,12 @@ void main() {
         apiKey: 'fly_pk_development_mobile', consent: ConsentState.granted);
     final report = await client.collect();
 
-    expect(report.schema, 1);
+    expect(report.schema, 2);
     expect(report.elapsedMs, 42);
-    expect(await Fingerly.nativeVersion(), '0.1.0');
+    expect(await Fingerly.nativeVersion(), '0.3.0');
   });
 
-  group('deleteStoredIdentity', () {
+  group('deleteStoredIdentity (GDPR erasure)', () {
     test('asks the native SDK without load or consent', () async {
       final calls = <String>[];
       messenger.setMockMethodCallHandler(_channel, (call) async {
@@ -494,8 +722,8 @@ void main() {
       );
     });
 
-    test('surfaces a failed delete as a FingerlyException', () async {
-      // Both plugins refuse with this code and message.
+    test('surfaces a failed delete as a FingerlyException with null status',
+        () async {
       messenger.setMockMethodCallHandler(
         _channel,
         (_) async => throw PlatformException(
@@ -514,200 +742,245 @@ void main() {
         ),
       );
     });
-  });
 
-  test('platform failures preserve the HTTP status', () async {
-    messenger.setMockMethodCallHandler(
-      _channel,
-      (_) async => throw PlatformException(code: '402', message: 'disabled'),
-    );
-
-    await expectLater(
-      Fingerly.load(apiKey: 'fly_pk_development_mobile'),
-      throwsA(
-        isA<FingerlyException>()
-            .having((error) => error.status, 'status', 402)
-            .having((error) => error.message, 'message', 'disabled'),
-      ),
-    );
-  });
-
-  test('a native Retry-After reaches FingerlyException.retryAfter', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    messenger.setMockMethodCallHandler(_channel, (call) async {
-      if (call.method != 'identify') return null;
-      throw PlatformException(
-        code: '429',
-        message: 'Too many requests',
-        details: {'retryAfterMs': 3000},
-      );
+    test('dartdoc states GDPR/privacy-only erasure of install_id and key state',
+        () {
+      final source = File('lib/fingerly_flutter.dart').readAsStringSync();
+      expect(source, contains('GDPR'));
+      expect(source, contains('install_id'));
+      expect(source, contains('attestation key state'));
     });
-    final fingerly = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
-
-    await expectLater(
-      fingerly.identify(),
-      throwsA(
-        isA<FingerlyException>()
-            .having((error) => error.status, 'status', 429)
-            .having((error) => error.retryAfter, 'retryAfter',
-                const Duration(seconds: 3)),
-      ),
-    );
   });
 
-  test('retryAfter is null when the failure named no wait', () async {
-    for (final details in <Object?>[
-      null,
-      {'retryAfterMs': 'soon'},
-      {'retryAfterMs': -1},
-      {'state': 'pending-not-a-consent-code'},
-    ]) {
+  group('error mapping & defensive decoding', () {
+    test('platform failures preserve HTTP status and ignore negative sentinels',
+        () async {
       messenger.setMockMethodCallHandler(
         _channel,
-        (_) async => throw PlatformException(
-          code: '503',
-          message: 'unavailable',
-          details: details,
+        (_) async => throw PlatformException(code: '402', message: 'disabled'),
+      );
+
+      await expectLater(
+        Fingerly.load(apiKey: 'fly_pk_development_mobile'),
+        throwsA(
+          isA<FingerlyException>()
+              .having((error) => error.status, 'status', 402)
+              .having((error) => error.message, 'message', 'disabled'),
         ),
+      );
+
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (_) async => throw PlatformException(code: '-1', message: 'no report'),
       );
 
       await expectLater(
         Fingerly.nativeVersion(),
-        throwsA(isA<FingerlyException>()
-            .having((error) => error.retryAfter, 'retryAfter', isNull)),
-        reason: '$details',
-      );
-    }
-  });
-
-  test('a missing native plugin becomes an actionable FingerlyException',
-      () async {
-    messenger.setMockMethodCallHandler(
-      _channel,
-      (_) async => throw MissingPluginException(),
-    );
-
-    await expectLater(
-      Fingerly.nativeVersion(),
-      throwsA(
-        isA<FingerlyException>().having(
-          (error) => error.message,
-          'message',
-          contains('flutter clean'),
+        throwsA(
+          isA<FingerlyException>()
+              .having((error) => error.status, 'status', isNull)
+              .having((error) => error.message, 'message', 'no report'),
         ),
-      ),
-    );
-  });
-
-  test('unknown native enum values degrade safely', () {
-    final outcome = SignalOutcome.fromJson({
-      'status': 'new-native-status',
-      'ms': 3,
+      );
     });
 
-    expect(outcome.status, SignalStatus.error);
-  });
-
-  test('a result without reason and with unknown members still decodes', () {
-    // Since server 00f1eb5 an app is no longer told why a submission went
-    // unscored, and a newer native SDK may add members this binding has
-    // never heard of.
-    final json = _identifyResult()
-      ..remove('reason')
-      ..['deferredToken'] = 'tok_1'
-      ..['somethingNew'] = {'nested': true};
-
-    final result = IdentifyResult.fromJson(json);
-
-    expect(result.requestId, 'req_123');
-    expect(result.reason, '');
-    expect(result.suspectScore, 16);
-  });
-
-  test('an answer the server did not give stays null on both native shapes',
-      () {
-    final android = IdentifyResult.fromJson({
-      'requestId': 'req_dup',
-      'visitorIsNew': null,
-      'visitorConfidence': null,
-      'identifiable': null,
-      'duplicate': null,
-    });
-    final ios = IdentifyResult.fromJson({'requestId': 'req_dup'});
-
-    for (final result in [android, ios]) {
-      expect(result.visitorIsNew, isNull);
-      expect(result.visitorConfidence, isNull);
-      expect(result.identifiable, isNull);
-      expect(result.duplicate, isNull);
-    }
-  });
-
-  test('a duplicate answer keeps its flag with the visitor fields empty', () {
-    final result = IdentifyResult.fromJson(
-        {'requestId': 'req_dup', 'visitorId': '', 'duplicate': true});
-
-    expect(result.duplicate, isTrue);
-    expect(result.visitorId, '');
-    expect(result.visitorConfidence, isNull);
-  });
-
-  test('members of the wrong type read as missing instead of throwing', () {
-    final result = IdentifyResult.fromJson({
-      'requestId': 42,
-      'visitorIsNew': 'yes',
-      'visitorConfidence': '92',
-      'suspectScore': 'high',
-      'triggers': [
-        'not-a-trigger',
-        {'signal': 'simulator', 'group': 7},
-      ],
-      'report': {
-        'schema': '1',
-        'sources': {
-          'device': {
-            'status': 'ok',
-            'ms': 2,
-            'value': ['not', 'a', 'map']
-          },
-          'broken': 'not-an-outcome',
-        },
-        'integrity': {
-          'patched_natives': 'dlsym',
-          'lies': [
-            {'id': 'x', 'kind': 'swizzled'},
-            5,
-          ],
-        },
-      },
-    });
-
-    expect(result.requestId, '');
-    expect(result.visitorIsNew, isNull);
-    expect(result.visitorConfidence, isNull);
-    expect(result.suspectScore, isNull);
-    expect(result.report.schema, 0);
-    expect(result.report.sources.keys, ['device']);
-    expect(result.report.sources['device']!.value, isNull);
-    expect(result.report.integrity.patchedNatives, isEmpty);
-    expect(result.report.integrity.lies.single.kind, 'swizzled');
-  });
-
-  test('an unreadable native answer is a FingerlyException', () async {
-    for (final raw in ['not json', '[1, 2]', '"text"']) {
-      messenger.setMockMethodCallHandler(_channel, (_) async => raw);
+    test('a native Retry-After reaches FingerlyException.retryAfter', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        if (call.method != 'identify') return null;
+        throw PlatformException(
+          code: '429',
+          message: 'Too many requests',
+          details: {'retryAfterMs': 3000},
+        );
+      });
       final fingerly = await Fingerly.load(apiKey: 'fly_pk_development_mobile');
 
       await expectLater(
         fingerly.identify(),
-        throwsA(isA<FingerlyException>()),
-        reason: raw,
+        throwsA(
+          isA<FingerlyException>()
+              .having((error) => error.status, 'status', 429)
+              .having((error) => error.retryAfter, 'retryAfter',
+                  const Duration(seconds: 3)),
+        ),
       );
+    });
+
+    test('retryAfter is null when the failure named no wait', () async {
+      for (final details in <Object?>[
+        null,
+        {'retryAfterMs': 'soon'},
+        {'retryAfterMs': -1},
+        {'state': 'pending-not-a-consent-code'},
+      ]) {
+        messenger.setMockMethodCallHandler(
+          _channel,
+          (_) async => throw PlatformException(
+            code: '503',
+            message: 'unavailable',
+            details: details,
+          ),
+        );
+
+        await expectLater(
+          Fingerly.nativeVersion(),
+          throwsA(isA<FingerlyException>()
+              .having((error) => error.retryAfter, 'retryAfter', isNull)),
+          reason: '$details',
+        );
+      }
+    });
+
+    test('a missing native plugin becomes an actionable FingerlyException',
+        () async {
+      messenger.setMockMethodCallHandler(
+        _channel,
+        (_) async => throw MissingPluginException(),
+      );
+
       await expectLater(
-        fingerly.collect(),
-        throwsA(isA<FingerlyException>()),
-        reason: raw,
+        Fingerly.nativeVersion(),
+        throwsA(
+          isA<FingerlyException>().having(
+            (error) => error.message,
+            'message',
+            contains('flutter clean'),
+          ),
+        ),
       );
-    }
+    });
+
+    test('unknown native enum values degrade safely', () {
+      final outcome = SignalOutcome.fromJson({
+        'status': 'new-native-status',
+        'ms': 3,
+      });
+
+      expect(outcome.status, SignalStatus.error);
+    });
+
+    test('a result without reason and with unknown members still decodes', () {
+      final json = _identifyResult()
+        ..remove('reason')
+        ..['next_attestation'] = {'challenge': 'chk_1'}
+        ..['somethingNew'] = {'nested': true};
+
+      final result = IdentifyResult.fromJson(json);
+
+      expect(result.requestId, 'req_123');
+      expect(result.reason, '');
+      expect(result.suspectScore, 16);
+    });
+
+    test('members of the wrong type read as missing instead of throwing', () {
+      final result = IdentifyResult.fromJson({
+        'requestId': 42,
+        'visitorIsNew': 'yes',
+        'visitorConfidence': '92',
+        'identifiable': 'true',
+        'duplicate': 'no',
+        'suspectScore': 'high',
+        'triggers': 'not-a-list',
+        'report': {
+          'schema': '2',
+          'sources': {
+            'device': {
+              'status': 'ok',
+              'ms': 2,
+              'value': ['not', 'a', 'map'],
+            },
+            'broken': 'not-an-outcome',
+          },
+          'integrity': {
+            'patched_natives': 'dlsym',
+            'lies': [
+              {'id': 'x', 'kind': 'swizzled'},
+              5,
+            ],
+          },
+        },
+      });
+
+      expect(result.requestId, '');
+      expect(result.visitorId, '');
+      expect(result.visitorIsNew, isFalse);
+      expect(result.identifiable, isFalse);
+      expect(result.duplicate, isFalse);
+      expect(result.visitorConfidence, isNull);
+      expect(result.suspectScore, isNull);
+      expect(result.triggers, isNull);
+      expect(result.report.schema, 0);
+      expect(result.report.sources.keys, ['device']);
+      expect(result.report.sources['device']!.value, isNull);
+      expect(result.report.integrity.patchedNatives, isEmpty);
+      expect(result.report.integrity.lies.single.kind, 'swizzled');
+    });
+
+    test('an unreadable or null native answer is a FingerlyException',
+        () async {
+      for (final raw in <String?>[null, 'not json', '[1, 2]', '"text"']) {
+        messenger.setMockMethodCallHandler(
+          _channel,
+          (call) async => call.method == 'configure' ? null : raw,
+        );
+        final fingerly =
+            await Fingerly.load(apiKey: 'fly_pk_development_mobile');
+
+        await expectLater(
+          fingerly.identify(),
+          throwsA(isA<FingerlyException>()),
+          reason: '$raw',
+        );
+        await expectLater(
+          fingerly.collect(),
+          throwsA(isA<FingerlyException>()),
+          reason: '$raw',
+        );
+      }
+    });
+  });
+
+  group('0.3.0 version parity', () {
+    test(
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.3.0',
+        () {
+      expect(Fingerly.pluginVersion, '0.3.0');
+
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      expect(pubspec, contains('version: 0.3.0'));
+
+      final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
+      expect(podspec, contains("native_version = '0.3.0'"));
+      expect(podspec, contains("s.version          = '0.3.0'"));
+      expect(
+        podspec,
+        contains(
+          "native_sha256  = 'c1d582eae15243fb63e3e55e68909490060f2b8232624b1025bb931c3100b4cc'",
+        ),
+      );
+      expect(podspec, contains('FINGERLY_XCFRAMEWORK_PATH'));
+
+      final spm = File('ios/fingerly_flutter/Package.swift').readAsStringSync();
+      expect(
+        spm,
+        contains(
+          '.package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.3.0")',
+        ),
+      );
+      expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
+
+      final gradle = File('android/build.gradle').readAsStringSync();
+      expect(gradle, contains("version '0.3.0'"));
+      expect(gradle, contains('mavenLocal()'));
+      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.3.0'"));
+
+      final changelog = File('CHANGELOG.md').readAsStringSync();
+      expect(changelog, contains('## 0.3.0'));
+
+      final readme = File('README.md').readAsStringSync();
+      expect(readme, contains('fingerly_flutter: ^0.3.0'));
+      expect(readme, contains('io.fingerly:fingerly:0.3.0'));
+    });
   });
 }

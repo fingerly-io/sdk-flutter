@@ -43,11 +43,11 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
         case "sdkVersion":
             result(FingerlyBridge.sdkVersion)
         case "deleteStoredIdentity":
-            // A synchronous keychain delete, which is an IPC round trip to
-            // securityd and can stall, so it runs off the platform thread
-            // (this method is called on it) and answers back on it, as the
-            // Android plugin does with its file delete. A refusal arrives as
-            // `delete_failed`, as it does from Android.
+            // Atomically removes the `Application Support/io.fingerly.sdk/`
+            // install record and local App Attest key state (strictly for
+            // user-initiated GDPR/privacy erasure). Executed off the main
+            // thread so container disk I/O never blocks UI work, answering back
+            // on the main queue with `delete_failed` on error to match Android.
             DispatchQueue.global(qos: .userInitiated).async {
                 let error = FingerlyBridge.deleteStoredIdentity()
                 DispatchQueue.main.async {
@@ -73,12 +73,16 @@ public class FingerlyPlugin: NSObject, FlutterPlugin {
             return
         }
 
+        // Android-only option; safely ignored on iOS when present in the
+        // channel payload.
+        _ = arguments["playIntegrityCloudProjectNumber"]
+
         FingerlyBridge.configure(
             apiKey: arguments["apiKey"] as? String ?? "",
             endpoint: arguments["endpoint"] as? String ?? "",
             platform: arguments["platform"] as? String ?? "flutter-ios",
-            // `fingerly.dart` always sends it, `pending` unless the app asked
-            // for another state; the fallback is that same Dart default.
+            // `fingerly_flutter.dart` always sends it, `pending` unless the app
+            // asked for another state; the fallback is that same Dart default.
             consent: arguments["consent"] as? String ?? "pending"
         )
         result(nil)

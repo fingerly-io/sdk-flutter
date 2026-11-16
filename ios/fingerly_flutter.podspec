@@ -14,8 +14,8 @@ Pod::Spec.new do |s|
   # Change these together with the `exact:` version in fingerly_flutter/Package.swift.
   # The checksum is the one in that release's Swift package manifest, and the
   # pin is what makes a changed file on the download host an install failure.
-  native_version = '0.2.0'
-  native_sha256  = 'af5be333b61f1e125fe8dbd9ce7ee32f616378bb62f5061c864e03dad7100ba5'
+  native_version = '0.3.0'
+  native_sha256  = 'c1d582eae15243fb63e3e55e68909490060f2b8232624b1025bb931c3100b4cc'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
   # This must differ from the native `Fingerly` pod by more than letter case.
@@ -23,7 +23,7 @@ Pod::Spec.new do |s|
   # macOS filesystem; naming this pod `fingerly` makes the native target depend on
   # itself and prevents every Flutter iOS application from compiling.
   s.name             = 'fingerly_flutter'
-  s.version          = '0.2.0'
+  s.version          = '0.3.0'
   s.summary          = 'Device intelligence and fraud signals for Flutter.'
   s.description      = <<~DESC
     The Flutter binding for the Fingerly fraud detection platform. Calls the
@@ -58,6 +58,23 @@ Pod::Spec.new do |s|
   s.vendored_frameworks = 'Frameworks/Fingerly.xcframework'
   s.prepare_command = <<~CMD
     set -eu
+    if [ -n "${FINGERLY_XCFRAMEWORK_PATH:-}" ]; then
+      rm -rf Frameworks
+      mkdir Frameworks
+      if [ -d "$FINGERLY_XCFRAMEWORK_PATH" ]; then
+        cp -R "$FINGERLY_XCFRAMEWORK_PATH" Frameworks/Fingerly.xcframework
+      elif [ -f "$FINGERLY_XCFRAMEWORK_PATH" ]; then
+        work="$(mktemp -d)"
+        trap 'rm -rf "$work"' EXIT
+        unzip -q "$FINGERLY_XCFRAMEWORK_PATH" -d "$work/sdk"
+        mv "$work/sdk/Fingerly.xcframework" Frameworks/
+        if [ -f "$work/sdk/LICENSE" ]; then mv "$work/sdk/LICENSE" Frameworks/; fi
+      else
+        echo "fingerly_flutter: FINGERLY_XCFRAMEWORK_PATH does not exist: $FINGERLY_XCFRAMEWORK_PATH" >&2
+        exit 1
+      fi
+      exit 0
+    fi
     if [ -d Frameworks/Fingerly.xcframework ]; then
       if [ ! -f Frameworks/.sha256 ] || [ "$(cat Frameworks/.sha256)" = '#{native_sha256}' ]; then
         exit 0

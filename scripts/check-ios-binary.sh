@@ -16,8 +16,12 @@ base="${FINGERLY_IOS_BASE_URL:-https://maven.fingerly.io/ios}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-curl --fail --silent --show-error --location --max-time 300 --retry 3 \
-  --output "$work/sdk.zip" "$base/Fingerly-$version.xcframework.zip"
+if [ -n "${FINGERLY_XCFRAMEWORK_PATH:-}" ] && [ -f "$FINGERLY_XCFRAMEWORK_PATH" ]; then
+  cp "$FINGERLY_XCFRAMEWORK_PATH" "$work/sdk.zip"
+else
+  curl --fail --silent --show-error --location --max-time 300 --retry 3 \
+    --output "$work/sdk.zip" "$base/Fingerly-$version.xcframework.zip"
+fi
 
 actual="$( (sha256sum "$work/sdk.zip" 2> /dev/null || shasum -a 256 "$work/sdk.zip") | cut -d ' ' -f 1)"
 if [ "$actual" != "$wanted" ]; then
