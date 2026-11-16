@@ -16,6 +16,18 @@
   that `Fingerly.deleteStoredIdentity()` is strictly for user-initiated GDPR /
   privacy erasure (atomically wiping local `install_id` and hardware attestation
   key state).
+- The podspec pins the Apple team next to the XCFramework checksum. The
+  install keeps a download only when the XCFramework and every slice carry a
+  valid signature under an Apple-issued certificate naming that team, and
+  keeps an existing framework only when its stamp names the pinned checksum and
+  team and its signature still verifies. An empty or malformed pin fails the
+  install.
+- Registers the app-checks and Play Integrity providers when their Android
+  artifacts are linked, keeps one registered by hand, and fails `configure`
+  when a Play Integrity project number has no provider.
+- `RiskSignal` lists `attestation_downgrade`, `probe_errors` and
+  `fetch_metadata_missing`, with `report_incomplete` and
+  `fingerprint_suppressed` among the cross-platform signals.
 
 ## 0.2.0
 
