@@ -52,6 +52,7 @@ Requires Flutter **3.10** or newer, iOS **13** or newer, and Android **5.0 (API
 ## Contents
 
 - [Identify](#identify)
+- [Named values](#named-values)
 - [Consent](#consent)
 - [Erasure](#erasure)
 - [Errors](#errors)
@@ -71,7 +72,7 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a shi
 
 - When `identifiable` is `false`, `visitorId` is `""` and `visitorIsNew` is `false`: the server never invents a visitor ID when the device signals are not enough. `visitorConfidence` can be `null` when the server did not say.
 - The score is a convenience for showing a result straight away. Each SDK key has a setting that hides it from apps, and then both fields are `null`, exactly as on a check nobody scored. An app cannot tell which it was, so read `null` as "no answer here", never as clean.
-- `triggers` lists the active risk signals and their weights when the key's audience receives them, and is `null` otherwise. Each `IdentifyTrigger` has its wire `signal` and a typed `riskSignal`, a `RiskSignal` such as `attestation_downgrade`, `probe_errors`, `fetch_metadata_missing`, `report_incomplete` or `fingerprint_suppressed`, which is null for a token this version does not know.
+- `triggers` lists the active risk signals and their weights when the key's audience receives them, and is `null` otherwise. Each `IdentifyTrigger` has the `signal` that fired and the `group` it is reported under, both compared with a `Signal` constant such as `Signal.attestationDowngrade` or `Signal.fingerprintSuppressed`, and a `confidence`, a `Confidence` constant.
 - The full signals behind a score are read on your backend, through the server-side event read by `requestId` or webhooks, or in the dashboard.
 - Send the `requestId` and `visitorId` to your own backend with the request they belong to, and let your backend decide: **the score in your hand came from a device you do not control**, and an app that branches on it locally is an app whose branch can be patched out.
 
@@ -83,6 +84,39 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a shi
 Call `collect()` to inspect the client `SignalReport` locally without sending anything to the server.
 
 `Fingerly.nativeVersion()` returns the version of the native SDK that did the collecting.
+
+## Named values
+
+The fixed strings the API returns have names, the same names the other Fingerly SDKs use. Each is a class of `static const String` members, its value in lowerCamelCase (`SuspectLevel.high` is `'high'`, `Signal.fingerprintSuppressed` is `'fingerprint_suppressed'`), so the fields stay `String`, a comparison with the plain string still works, and a value a newer server adds reaches the app unchanged:
+
+```dart
+final result = await fingerly.identify(tag: 'checkout');
+
+if (result.state == EventState.unavailable) {
+  // The network lookup could not run, so the check was not scored.
+}
+
+switch (result.suspectLevel) {
+  case SuspectLevel.high:
+    // Show a step-up screen while your backend makes the decision.
+    break;
+  case null:
+    // Not scored, or the score is hidden from apps.
+    break;
+  default:
+    break;
+}
+```
+
+| Constant | Members | Where it appears |
+| --- | --- | --- |
+| `SuspectLevel` | `low`, `medium`, `high` | `IdentifyResult.suspectLevel`. |
+| `EventState` | `enriched`, `unavailable`, `pending` | `IdentifyResult.state`. An answer is never `pending`, which only a server-side event read reports. |
+| `Signal` | Every signal group and detector the server reports, such as `Signal.jailbreak` and `Signal.vpnPublic` | `IdentifyTrigger.signal` and `IdentifyTrigger.group`, and the event your backend reads. |
+| `Confidence` | `low`, `medium`, `high` | `IdentifyTrigger.confidence`. |
+| `ConsentState` | `granted`, `pending`, `denied` | An enum: `consent:` on `Fingerly.load`, `setConsent`, `consent` and `FingerlyConsentException.state`. |
+
+Each class also has `values`, the full list. Keep a `default` in a `switch` over one of them: the list grows when the server learns something new.
 
 ## Consent
 
