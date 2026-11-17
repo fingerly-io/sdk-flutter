@@ -1012,18 +1012,18 @@ void main() {
     });
   });
 
-  group('0.3.0 version parity', () {
+  group('0.4.0 version parity', () {
     test(
-        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.3.0',
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.0',
         () {
-      expect(Fingerly.pluginVersion, '0.3.0');
+      expect(Fingerly.pluginVersion, '0.4.0');
 
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec, contains('version: 0.3.0'));
+      expect(pubspec, contains('version: 0.4.0'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
       expect(podspec, contains("native_version = '0.4.0'"));
-      expect(podspec, contains("s.version          = '0.3.0'"));
+      expect(podspec, contains("s.version          = '0.4.0'"));
       expect(
         podspec,
         contains(
@@ -1043,15 +1043,15 @@ void main() {
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final gradle = File('android/build.gradle').readAsStringSync();
-      expect(gradle, contains("version '0.3.0'"));
+      expect(gradle, contains("version '0.4.0'"));
       expect(gradle, contains('mavenLocal()'));
       expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
-      expect(changelog, contains('## 0.3.0'));
+      expect(changelog, contains('## 0.4.0'));
 
       final readme = File('README.md').readAsStringSync();
-      expect(readme, contains('fingerly_flutter: ^0.3.0'));
+      expect(readme, contains('fingerly_flutter: ^0.4.0'));
       expect(readme, contains('io.fingerly:fingerly:0.4.0'));
     });
   });

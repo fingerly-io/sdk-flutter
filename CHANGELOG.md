@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0
+
+- Named constants for the fixed values the API returns, the same names the
+  other Fingerly SDKs use: `SuspectLevel`, `Confidence`, `EventState` and
+  `Signal`, each a class of `static const String` members in lowerCamelCase
+  (`SuspectLevel.high`, `Signal.fingerprintSuppressed`) with a `values` list.
+  `IdentifyResult.suspectLevel`, `IdentifyResult.state` and
+  `IdentifyTrigger.signal`, `group` and `confidence` stay `String`, so a
+  comparison with the plain string still works and a value a newer server adds
+  arrives unchanged. `ConsentState` stays an enum.
+- `Signal` lists all 73 signal groups and detectors the server reports,
+  including `repeatedReinstall`, `deviceActivityHigh` and
+  `deviceActivityVeryHigh`.
+- **Breaking:** the `RiskSignal` enum and `IdentifyTrigger.riskSignal` are
+  removed. Compare `IdentifyTrigger.signal` with a `Signal` member instead, for
+  example `trigger.signal == Signal.attestationFailed`. The enum was behind the
+  server and still named the retired `app_attest_key_churn`.
+- Update native iOS (`sdk-ios` / `Fingerly.xcframework`) and Android
+  (`io.fingerly:fingerly`) dependencies to `0.4.0`. Nothing collected or sent
+  changes.
+
 ## 0.3.0
 
 - Update native iOS (`sdk-ios` / `Fingerly.xcframework`) and Android
