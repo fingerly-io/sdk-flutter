@@ -959,7 +959,7 @@ void main() {
       expect(
         podspec,
         contains(
-          "native_sha256  = 'c1d582eae15243fb63e3e55e68909490060f2b8232624b1025bb931c3100b4cc'",
+          "native_sha256  = 'b3288cc4539b6c5b8bae226854a586473b2457489e69b2ac1f26e9f84f6add27'",
         ),
       );
       expect(podspec, contains("native_team_id = 'XGXX88HRR5'"));

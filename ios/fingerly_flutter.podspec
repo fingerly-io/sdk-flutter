@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   # The team is the Apple team that must have signed the framework, a copy of
   # the pin in the iOS SDK's scripts/signing-team.sh.
   native_version = '0.3.0'
-  native_sha256  = 'c1d582eae15243fb63e3e55e68909490060f2b8232624b1025bb931c3100b4cc'
+  native_sha256  = 'b3288cc4539b6c5b8bae226854a586473b2457489e69b2ac1f26e9f84f6add27'
   native_team_id = 'XGXX88HRR5'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
