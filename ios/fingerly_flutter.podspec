@@ -14,8 +14,11 @@ Pod::Spec.new do |s|
   # Change these together with the `exact:` version in fingerly_flutter/Package.swift.
   # The checksum is the one in that release's Swift package manifest, and the
   # pin is what makes a changed file on the download host an install failure.
-  native_version = '0.2.0'
-  native_sha256  = 'af5be333b61f1e125fe8dbd9ce7ee32f616378bb62f5061c864e03dad7100ba5'
+  # The team is the Apple team that must have signed the framework, a copy of
+  # the pin in the iOS SDK's scripts/signing-team.sh.
+  native_version = '0.3.0'
+  native_sha256  = 'b3288cc4539b6c5b8bae226854a586473b2457489e69b2ac1f26e9f84f6add27'
+  native_team_id = 'XGXX88HRR5'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
   # This must differ from the native `Fingerly` pod by more than letter case.
@@ -23,7 +26,7 @@ Pod::Spec.new do |s|
   # macOS filesystem; naming this pod `fingerly` makes the native target depend on
   # itself and prevents every Flutter iOS application from compiling.
   s.name             = 'fingerly_flutter'
-  s.version          = '0.2.0'
+  s.version          = '0.3.0'
   s.summary          = 'Device intelligence and fraud signals for Flutter.'
   s.description      = <<~DESC
     The Flutter binding for the Fingerly fraud detection platform. Calls the
@@ -53,19 +56,63 @@ Pod::Spec.new do |s|
 
   # The SDK. Everything this plugin does is call into it. CocoaPods runs this
   # for a path pod as well, from the pod's own directory, before it looks for
-  # the framework. A framework with no stamp beside it was unpacked by hand from
-  # a local build and is left alone.
+  # the framework. A download is installed only when it matches the pinned
+  # checksum and is signed by the pinned Apple team. An existing framework is
+  # kept only when its stamp names the pinned checksum and its signature still
+  # verifies; anything else, including a framework without a stamp, is
+  # replaced by a verified download. A local build is installed through
+  # FINGERLY_XCFRAMEWORK_PATH, which writes no stamp, so a later install without
+  # the variable replaces it.
   s.vendored_frameworks = 'Frameworks/Fingerly.xcframework'
   s.prepare_command = <<~CMD
     set -eu
-    if [ -d Frameworks/Fingerly.xcframework ]; then
-      if [ ! -f Frameworks/.sha256 ] || [ "$(cat Frameworks/.sha256)" = '#{native_sha256}' ]; then
-        exit 0
+    if [ -n "${FINGERLY_XCFRAMEWORK_PATH:-}" ]; then
+      rm -rf Frameworks
+      mkdir Frameworks
+      if [ -d "$FINGERLY_XCFRAMEWORK_PATH" ]; then
+        cp -R "$FINGERLY_XCFRAMEWORK_PATH" Frameworks/Fingerly.xcframework
+      elif [ -f "$FINGERLY_XCFRAMEWORK_PATH" ]; then
+        work="$(mktemp -d)"
+        trap 'rm -rf "$work"' EXIT
+        unzip -q "$FINGERLY_XCFRAMEWORK_PATH" -d "$work/sdk"
+        mv "$work/sdk/Fingerly.xcframework" Frameworks/
+        if [ -f "$work/sdk/LICENSE" ]; then mv "$work/sdk/LICENSE" Frameworks/; fi
+      else
+        echo "fingerly_flutter: FINGERLY_XCFRAMEWORK_PATH does not exist: $FINGERLY_XCFRAMEWORK_PATH" >&2
+        exit 1
       fi
+      exit 0
     fi
-    if [ -z '#{native_sha256}' ]; then
-      echo 'fingerly_flutter: no checksum is pinned for the native iOS SDK' >&2
+    if ! printf '%s' '#{native_sha256}' | grep -qE '^[0-9a-f]{64}$'; then
+      echo 'fingerly_flutter: no valid checksum is pinned for the native iOS SDK' >&2
       exit 1
+    fi
+    team='#{native_team_id}'
+    if ! printf '%s' "$team" | grep -qE '^[A-Z0-9]{10}$'; then
+      echo 'fingerly_flutter: no valid Apple team identifier is pinned for the native iOS SDK' >&2
+      exit 1
+    fi
+    # A valid signature under an Apple-issued certificate whose leaf names the
+    # team, on the XCFramework and every slice, recording the same team.
+    verify_signature() {
+      requirement="anchor apple generic and certificate leaf[subject.OU] = \\"$team\\""
+      for code in "$1" "$1"/*/Fingerly.framework; do
+        [ -e "$code" ] || continue
+        if ! codesign --verify --strict --deep -R="$requirement" "$code" >&2; then
+          echo "fingerly_flutter: $code is not signed by Apple team $team" >&2
+          return 1
+        fi
+        signer="$(codesign -dv "$code" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+        if [ "$signer" != "$team" ]; then
+          echo "fingerly_flutter: $code records team ${signer:-none}, expected $team" >&2
+          return 1
+        fi
+      done
+    }
+    if [ -d Frameworks/Fingerly.xcframework ] && [ -f Frameworks/.sha256 ] \
+       && [ "$(cat Frameworks/.sha256)" = '#{native_sha256} #{native_team_id}' ] \
+       && verify_signature Frameworks/Fingerly.xcframework 2>/dev/null; then
+      exit 0
     fi
     work="$(mktemp -d)"
     trap 'rm -rf "$work"' EXIT
@@ -77,11 +124,16 @@ Pod::Spec.new do |s|
       exit 1
     fi
     unzip -q "$work/sdk.zip" -d "$work/sdk"
+    if [ ! -d "$work/sdk/Fingerly.xcframework" ]; then
+      echo 'fingerly_flutter: the native iOS SDK archive holds no Fingerly.xcframework' >&2
+      exit 1
+    fi
+    verify_signature "$work/sdk/Fingerly.xcframework"
     rm -rf Frameworks
     mkdir Frameworks
     mv "$work/sdk/Fingerly.xcframework" Frameworks/
     if [ -f "$work/sdk/LICENSE" ]; then mv "$work/sdk/LICENSE" Frameworks/; fi
-    echo '#{native_sha256}' > Frameworks/.sha256
+    echo '#{native_sha256} #{native_team_id}' > Frameworks/.sha256
   CMD
 
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }

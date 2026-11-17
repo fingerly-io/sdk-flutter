@@ -1,8 +1,7 @@
 /// The shapes the native SDKs report in, as Dart.
 ///
-/// A port of `@fingerly/core`'s `types.ts`, the same way `Types.swift` is. Where
-/// the three differ, the JSON is the thing that has to match and the Dart
-/// naming is allowed to be Dart.
+/// Matches the unified `v: 3` wire contract (`sdks/contract/v3-envelope.md`) and
+/// native `schema: 2` telemetry contract (`sdks/contract/native-report.md`).
 ///
 /// Everything here is immutable and everything parses defensively. The JSON
 /// arrives from a native SDK on a device the app does not control, and a
@@ -37,6 +36,43 @@ List<Map<String, dynamic>> _maps(Object? value) => value is List
     ? value.map(_map).whereType<Map<String, dynamic>>().toList(growable: false)
     : const <Map<String, dynamic>>[];
 
+List<IdentifyTrigger>? _triggers(Object? value) {
+  if (value is! List) return null;
+  final out = <IdentifyTrigger>[];
+  for (final item in value) {
+    final map = _map(item);
+    if (map == null) continue;
+    final parsed = IdentifyTrigger.tryFromJson(map);
+    if (parsed != null) out.add(parsed);
+  }
+  return List<IdentifyTrigger>.unmodifiable(out);
+}
+
+/// Configuration passed to `Fingerly.configure` / `Fingerly.load`.
+class FingerlyConfig {
+  const FingerlyConfig({
+    required this.apiKey,
+    this.endpoint = '',
+    this.consent = ConsentState.pending,
+    this.playIntegrityCloudProjectNumber,
+  });
+
+  /// Publishable SDK key from the Fingerly dashboard (`fly_pk_...`).
+  final String apiKey;
+
+  /// Optional API origin override; empty uses `https://api.fingerly.io`.
+  final String endpoint;
+
+  /// Initial collection consent state. Defaults to [ConsentState.pending].
+  final ConsentState consent;
+
+  /// Android only: Google Cloud project number linked to the app in Play
+  /// Console for Standard Play Integrity token requests (`> 0` when set).
+  /// Safely ignored on iOS and when `io.fingerly:fingerly-play-integrity` is
+  /// not linked into the Android app.
+  final int? playIntegrityCloudProjectNumber;
+}
+
 /// How a source finished.
 ///
 /// Five values, never a hole. A device that lacks an API, a jailbreak that
@@ -66,10 +102,9 @@ enum SignalStatus {
 ///
 /// Spelled as the other Fingerly SDKs spell it, and sent across the channel by
 /// [name]. [pending] is the default: the SDK identifies nobody until it is
-/// told [granted]. [pending] and [denied] mean the same thing
-/// to the SDK (run no source, send nothing, throw
-/// [FingerlyConsentException]) and are kept apart because a consent tool
-/// reports them apart.
+/// told [granted]. [pending] and [denied] mean the same thing to the SDK (run
+/// no source, send nothing, throw [FingerlyConsentException]) and are kept
+/// apart because a consent tool reports them apart.
 enum ConsentState {
   granted,
   pending,
@@ -82,6 +117,118 @@ enum ConsentState {
         'denied' => ConsentState.denied,
         _ => null,
       };
+}
+
+/// Canonical v3 risk signal catalogue (`sdks/contract/openapi.json` and
+/// `sdks/contract/v3-manifest.json`).
+enum RiskSignal {
+  // Cross-platform signals
+  highActivity('high_activity'),
+  tampering('tampering'),
+  deviceFarm('device_farm'),
+  developerTools('developer_tools'),
+  geoMismatch('geo_mismatch'),
+  deviceInconsistent('device_inconsistent'),
+  reportIncomplete('report_incomplete'),
+  fingerprintSuppressed('fingerprint_suppressed'),
+
+  // Network & IP intelligence signals
+  tor('tor'),
+  proxy('proxy'),
+  residentialProxy('residential_proxy'),
+  residentialProxyLowConfidence('residential_proxy_low_confidence'),
+  residentialProxyMediumConfidence('residential_proxy_medium_confidence'),
+  residentialProxyHighConfidence('residential_proxy_high_confidence'),
+  vpnPublic('vpn_public'),
+  vpnTimezone('vpn_timezone'),
+  vpnRelay('vpn_relay'),
+  vpnMobile('vpn_mobile'),
+  vpnOsMismatch('vpn_os_mismatch'),
+  vpnLowConfidence('vpn_low_confidence'),
+  vpnMediumConfidence('vpn_medium_confidence'),
+  vpnHighConfidence('vpn_high_confidence'),
+  ipBlocklistEmailSpam('ip_blocklist_email_spam'),
+  ipBlocklistAttackSource('ip_blocklist_attack_source'),
+  ipAbuser('ip_abuser'),
+  datacenterIp('datacenter_ip'),
+  bogonIp('bogon_ip'),
+  anycastIp('anycast_ip'),
+
+  // Browser-only signals
+  incognito('incognito'),
+  badBot('bad_bot'),
+  automation('automation'),
+  fetchMetadataMissing('fetch_metadata_missing'),
+  antidetectBrowser('antidetect_browser'),
+  virtualMachine('virtual_machine'),
+  privacySettings('privacy_settings'),
+  embeddedWebView('embedded_web_view'),
+  remoteControl('remote_control'),
+
+  // Native-only signals
+  emulator('emulator'),
+  rootApps('root_apps'),
+  appCloner('app_cloner'),
+  jailbreak('jailbreak'),
+  simulator('simulator'),
+  frida('frida'),
+  mitmAttack('mitm_attack'),
+  activeCall('active_call'),
+  attestationMissing('attestation_missing'),
+  attestationDowngrade('attestation_downgrade'),
+  appAttestKeyChurn('app_attest_key_churn'),
+  playDeviceIntegrityFailed('play_device_integrity_failed'),
+  playAppUnrecognized('play_app_unrecognized'),
+  attestationFailed('attestation_failed'),
+  probeErrors('probe_errors'),
+  customRootCa('custom_root_ca'),
+  secondaryUserProfile('secondary_user_profile');
+
+  const RiskSignal(this.wire);
+
+  /// Exact wire token used by the server and OpenAPI schema.
+  final String wire;
+
+  static final Map<String, RiskSignal> _byWire = {
+    for (final signal in RiskSignal.values) signal.wire: signal,
+  };
+
+  /// Looks up a known [RiskSignal] by its wire token, or returns null for an
+  /// unrecognised token from a newer server.
+  static RiskSignal? tryParse(Object? value) =>
+      value is String ? _byWire[value] : null;
+}
+
+/// One active risk trigger (`IdentifyTriggerOut` in OpenAPI).
+class IdentifyTrigger {
+  const IdentifyTrigger({
+    required this.signal,
+    this.group,
+    this.weight,
+    this.confidence,
+  });
+
+  /// Canonical wire identifier, such as `attestation_failed` or `tampering`.
+  final String signal;
+
+  /// Typed [RiskSignal] when [signal] belongs to the known v3 catalogue, or
+  /// null when emitted by a newer server.
+  RiskSignal? get riskSignal => RiskSignal.tryParse(signal);
+
+  final String? group;
+  final int? weight;
+  final String? confidence;
+
+  static IdentifyTrigger? tryFromJson(Map<String, dynamic> json) {
+    final signal = _string(json['signal']);
+    if (signal == null || signal.isEmpty) return null;
+    return IdentifyTrigger(
+      signal: signal,
+      group: _string(json['group']),
+      weight: _int(json['weight']),
+      confidence: _string(json['confidence']),
+    );
+  }
 }
 
 /// What one source reported.
@@ -129,30 +276,145 @@ class Lie {
       );
 }
 
-/// The tamper layer's findings. Raw; the server decides what they are worth.
-class IntegrityReport {
-  const IntegrityReport({
-    required this.patchedNatives,
-    required this.lies,
+/// Where one watched iOS C function resolved, and the prologue/branch behind it.
+class NativeSymbol {
+  const NativeSymbol({
+    required this.symbol,
+    required this.image,
+    required this.tree,
+    this.prologue,
+    this.branchImage,
+    this.branchTree,
+    this.branchResolved,
   });
 
-  /// Functions that are no longer the ones the platform shipped.
+  final String symbol;
+  final String image;
+  final String tree;
+  final String? prologue;
+  final String? branchImage;
+  final String? branchTree;
+  final bool? branchResolved;
+
+  factory NativeSymbol.fromJson(Map<String, dynamic> json) => NativeSymbol(
+        symbol: _string(json['symbol']) ?? '',
+        image: _string(json['image']) ?? '',
+        tree: _string(json['tree']) ?? '',
+        prologue: _string(json['prologue']),
+        branchImage: _string(json['branch_image']),
+        branchTree: _string(json['branch_tree']),
+        branchResolved: _bool(json['branch_resolved']),
+      );
+}
+
+/// Where one watched iOS Objective-C method's implementation lives.
+class ObjcMethod {
+  const ObjcMethod({
+    required this.method,
+    this.image,
+    required this.tree,
+    this.isaSwizzled,
+    this.msgForward,
+  });
+
+  final String method;
+  final String? image;
+  final String tree;
+  final bool? isaSwizzled;
+  final bool? msgForward;
+
+  factory ObjcMethod.fromJson(Map<String, dynamic> json) => ObjcMethod(
+        method: _string(json['method']) ?? '',
+        image: _string(json['image']),
+        tree: _string(json['tree']) ?? '',
+        isaSwizzled: _bool(json['isa_swizzled']),
+        msgForward: _bool(json['msg_forward']),
+      );
+}
+
+/// Where one Mach-O GOT / lazy-symbol pointer slot in the iOS SDK image points.
+class GotSlot {
+  const GotSlot({
+    required this.symbol,
+    this.image,
+    required this.tree,
+  });
+
+  final String symbol;
+  final String? image;
+  final String tree;
+
+  factory GotSlot.fromJson(Map<String, dynamic> json) => GotSlot(
+        symbol: _string(json['symbol']) ?? '',
+        image: _string(json['image']),
+        tree: _string(json['tree']) ?? '',
+      );
+}
+
+/// Reflection counts on one watched Android framework method.
+class NativeMethodCount {
+  const NativeMethodCount({
+    required this.method,
+    required this.declared,
+    required this.native,
+  });
+
+  final String method;
+  final int declared;
+  final int native;
+
+  factory NativeMethodCount.fromJson(Map<String, dynamic> json) =>
+      NativeMethodCount(
+        method: _string(json['method']) ?? '',
+        declared: _int(json['declared']) ?? 0,
+        native: _int(json['native']) ?? 0,
+      );
+}
+
+/// The runtime integrity layer's raw observations.
+class IntegrityReport {
+  const IntegrityReport({
+    this.patchedNatives = const [],
+    this.lies = const [],
+    this.nativeSymbols = const [],
+    this.objcMethods = const [],
+    this.gotSlots,
+    this.nativeMethods = const [],
+  });
+
   final List<String> patchedNatives;
   final List<Lie> lies;
+  final List<NativeSymbol> nativeSymbols;
+  final List<ObjcMethod> objcMethods;
+  final List<GotSlot>? gotSlots;
+  final List<NativeMethodCount> nativeMethods;
 
   factory IntegrityReport.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
-      return const IntegrityReport(patchedNatives: [], lies: []);
+      return const IntegrityReport();
     }
 
+    final rawGotSlots = json['got_slots'];
     return IntegrityReport(
       patchedNatives: _strings(json['patched_natives']),
       lies: _maps(json['lies']).map(Lie.fromJson).toList(growable: false),
+      nativeSymbols: _maps(json['native_symbols'])
+          .map(NativeSymbol.fromJson)
+          .toList(growable: false),
+      objcMethods: _maps(json['objc_methods'])
+          .map(ObjcMethod.fromJson)
+          .toList(growable: false),
+      gotSlots: rawGotSlots is List
+          ? _maps(rawGotSlots).map(GotSlot.fromJson).toList(growable: false)
+          : null,
+      nativeMethods: _maps(json['native_methods'])
+          .map(NativeMethodCount.fromJson)
+          .toList(growable: false),
     );
   }
 }
 
-/// The whole client-side observation, as submitted.
+/// The whole client-side observation (`schema: 2` on native), as submitted.
 class SignalReport {
   const SignalReport({
     required this.schema,
@@ -184,7 +446,7 @@ class SignalReport {
       );
 }
 
-/// What `identify()` resolves with.
+/// What `identify()` resolves with (`schemas.IdentifyOut` in v3).
 class IdentifyResult {
   const IdentifyResult({
     required this.requestId,
@@ -197,88 +459,90 @@ class IdentifyResult {
     required this.reason,
     required this.suspectScore,
     required this.suspectLevel,
+    this.triggers,
     required this.report,
   });
 
-  /// `identify(submit: false)`: nothing was sent, so nobody answered and every
-  /// server field is empty.
-  const IdentifyResult.reportOnly(SignalReport this.report)
-      : requestId = '',
-        visitorId = '',
-        visitorIsNew = null,
-        visitorConfidence = null,
-        identifiable = null,
-        duplicate = null,
-        state = '',
-        reason = '',
-        suspectScore = null,
-        suspectLevel = null;
-
-  /// Empty when `submit` was false: nothing was sent, so an invented
-  /// identifier would be worse than an empty one.
+  /// Unique event identifier assigned by the server.
   final String requestId;
 
-  /// Who the server decided this is, stable across visits. Empty when nothing
-  /// was submitted.
+  /// Stable project-scoped visitor identifier, or `""` whenever
+  /// [identifiable] is `false` (Option B), the report came from a genuine
+  /// embedded WebView, or an unmatched report was withheld.
   final String visitorId;
 
-  /// True when the server had never seen this visitor before. Null when it
-  /// did not say.
-  final bool? visitorIsNew;
+  /// `true` only when a new visitor row was minted; always `false` when
+  /// [visitorId] is empty.
+  final bool visitorIsNew;
 
-  /// How sure the server is of [visitorId], 0 to 100. Null when it did not
-  /// say, which is not the same as 0.
+  /// How sure the server is of [visitorId], 0 to 100 (`0` when [visitorId] is
+  /// `""`). Null when the native bridge omitted it.
   final int? visitorConfidence;
 
-  /// False when the report carried too little to identify anyone. Null when
-  /// the server did not say.
-  final bool? identifiable;
+  /// `false` when the report carried too little independent signal to identify
+  /// a device.
+  final bool identifiable;
 
-  /// True when this submission was answered before, and this answer belongs
-  /// to the first one. Null when the server did not say.
-  final bool? duplicate;
+  /// `true` when this submission replayed a cached verdict under the same
+  /// `Idempotency-Key`.
+  final bool duplicate;
 
-  /// The server's disposition of the check.
+  /// The server's disposition of the check (`enriched` or `unavailable`).
   final String state;
 
-  /// Why, when [state] needs explaining. Empty when it does not.
+  /// Why, when [state] needs explaining. Empty when omitted.
   final String reason;
 
-  /// The server's score, or null when there is none to show.
+  /// The server's score, or null when unscored or hidden by `hide_client_score`.
   ///
-  /// A convenience for showing a result straight away. Null means the check
-  /// was not scored or the SDK key hides the score from apps, and an app
-  /// cannot tell which. Null and 0 are different answers: 0 is "scored,
-  /// nothing fired". Do not collapse them with `?? 0` — that turns an unknown
-  /// into a clean one. The signals behind a score are read on your backend.
+  /// Null and 0 are different answers: 0 is "scored, nothing fired". Do not
+  /// collapse them with `?? 0` — that turns an unknown into a clean one.
   final int? suspectScore;
 
-  /// The score as a band — `low`, `medium`, `high`. Null exactly when
-  /// [suspectScore] is.
+  /// The score as a band — `low`, `medium`, `high`. Null whenever
+  /// [suspectScore] is null.
   final String? suspectLevel;
 
-  /// The report that was sent, for debugging and for offline callers.
+  /// Active risk signals and weights when returned by the caller's audience
+  /// (omitted / null on public keys and standard native bridges).
+  final List<IdentifyTrigger>? triggers;
+
+  /// The raw client report that was collected and submitted.
   final SignalReport report;
 
-  factory IdentifyResult.fromJson(Map<String, dynamic> json) => IdentifyResult(
-        requestId: _string(json['requestId']) ?? '',
-        visitorId: _string(json['visitorId']) ?? '',
-        // These and the score are read without a fallback, unlike the strings.
-        // A native bridge sends null or nothing when the server did not say,
-        // and `?? 0` or `?? false` would turn that into a real answer, which
-        // for the score is the one answer that lets somebody through.
-        visitorIsNew: _bool(json['visitorIsNew']),
-        visitorConfidence: _int(json['visitorConfidence']),
-        identifiable: _bool(json['identifiable']),
-        duplicate: _bool(json['duplicate']),
-        state: _string(json['state']) ?? '',
-        reason: _string(json['reason']) ?? '',
-        suspectScore: _int(json['suspectScore']),
-        suspectLevel: _string(json['suspectLevel']),
-        report: SignalReport.fromJson(
-          _map(json['report']) ?? const <String, dynamic>{},
-        ),
-      );
+  factory IdentifyResult.fromJson(Map<String, dynamic> json) {
+    final rawIdentifiable = _bool(json['identifiable']);
+    final rawVisitorId =
+        _string(json['visitorId']) ?? _string(json['visitor_id']) ?? '';
+    final identifiable = rawIdentifiable ?? rawVisitorId.isNotEmpty;
+    // Option B: unidentifiable submissions never expose a visitorId.
+    final visitorId = rawIdentifiable == false ? '' : rawVisitorId;
+    final rawVisitorIsNew =
+        _bool(json['visitorIsNew']) ?? _bool(json['visitor_is_new']) ?? false;
+    final suspectScore =
+        _int(json['suspectScore']) ?? _int(json['suspect_score']);
+    final rawSuspectLevel =
+        _string(json['suspectLevel']) ?? _string(json['suspect_level']);
+
+    return IdentifyResult(
+      requestId:
+          _string(json['requestId']) ?? _string(json['request_id']) ?? '',
+      visitorId: visitorId,
+      visitorIsNew: visitorId.isEmpty ? false : rawVisitorIsNew,
+      visitorConfidence:
+          _int(json['visitorConfidence']) ?? _int(json['visitor_confidence']),
+      identifiable: identifiable,
+      duplicate: _bool(json['duplicate']) ?? false,
+      state: _string(json['state']) ?? '',
+      reason: _string(json['reason']) ?? '',
+      suspectScore: suspectScore,
+      suspectLevel: suspectScore == null ? null : rawSuspectLevel,
+      triggers: _triggers(json['triggers']),
+      report: SignalReport.fromJson(
+        _map(json['report']) ?? const <String, dynamic>{},
+      ),
+    );
+  }
 }
 
 /// A failure the caller can act on.
@@ -295,8 +559,7 @@ class FingerlyException implements Exception {
 
   /// How long the server asked the app to wait, from its `Retry-After`, when
   /// the native SDK gave up on a 429 or 503 that named one. Null when the
-  /// response named no wait, and on platforms whose native bridge does not
-  /// pass one on. Wait at least this long before identifying again.
+  /// response named no wait. Wait at least this long before identifying again.
   final Duration? retryAfter;
 
   @override

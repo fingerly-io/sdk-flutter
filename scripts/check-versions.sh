@@ -34,6 +34,8 @@ same "Package.swift native iOS version" "$spm_ios" "$native_ios"
 
 sha="$(sed -n "s/.*native_sha256 *= *'\(.*\)'.*/\1/p" "$podspec")"
 [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || fail "$podspec native_sha256 is not a SHA-256: publish the iOS binary and pin it"
+team="$(sed -n "s/.*native_team_id *= *'\(.*\)'.*/\1/p" "$podspec")"
+[[ "$team" =~ ^[A-Z0-9]{10}$ ]] || fail "$podspec native_team_id is not an Apple team identifier"
 
 native_android="$(sed -n "s/.*'io\.fingerly:fingerly:\(.*\)'.*/\1/p" android/build.gradle)"
 grep -qF "io.fingerly:fingerly:$native_android" README.md || fail "README.md does not name Android SDK $native_android"

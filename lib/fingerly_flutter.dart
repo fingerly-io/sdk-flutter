@@ -88,6 +88,39 @@ ConsentState _consent = ConsentState.pending;
 class Fingerly {
   const Fingerly._();
 
+  /// The Flutter plugin package version (`pubspec.yaml`).
+  static const String pluginVersion = '0.3.0';
+
+  /// Configure the SDK from a [FingerlyConfig] and return a client.
+  ///
+  /// Equivalent to [load], accepting a typed configuration object.
+  static Future<Fingerly> configure(FingerlyConfig config) async {
+    final projectNumber = config.playIntegrityCloudProjectNumber;
+    if (projectNumber != null && projectNumber <= 0) {
+      throw ArgumentError.value(
+        projectNumber,
+        'playIntegrityCloudProjectNumber',
+        'must be a positive number',
+      );
+    }
+
+    await _invokeVoid('configure', {
+      'apiKey': config.apiKey,
+      // Empty means "use the native default". Not null: the native signature
+      // takes a non-null string, and a null across the channel fails the
+      // argument check rather than falling back.
+      'endpoint': config.endpoint,
+      'platform': _platformName(),
+      'consent': config.consent.name,
+      // Sent only when set. Safely ignored on iOS.
+      if (projectNumber != null)
+        'playIntegrityCloudProjectNumber': projectNumber,
+    });
+
+    _consent = config.consent;
+    return const Fingerly._();
+  }
+
   /// Configure the SDK and return a client.
   ///
   /// The key is a **publishable** SDK key from the dashboard, and it is safe in
@@ -106,8 +139,8 @@ class Fingerly {
   /// [playIntegrityCloudProjectNumber] is Android only: your Google Cloud
   /// project number, the one linked to the app in Play Console, to add Play
   /// Integrity verdicts to events (server ADR 0026). It takes effect only when
-  /// the app also depends on the optional `io.fingerly:fingerly-play-integrity`
-  /// artifact; without it the number is ignored and nothing fails. Ignored on
+  /// the app also links `io.fingerly:fingerly-play-integrity` and registers its
+  /// provider; without it the number is ignored and nothing fails. Ignored on
   /// iOS. Null, the default, leaves Play Integrity off. Anything that is not a
   /// positive number throws an [ArgumentError] before anything is configured.
   static Future<Fingerly> load({
@@ -115,32 +148,18 @@ class Fingerly {
     String endpoint = '',
     ConsentState consent = ConsentState.pending,
     int? playIntegrityCloudProjectNumber,
-  }) async {
-    if (playIntegrityCloudProjectNumber != null &&
-        playIntegrityCloudProjectNumber <= 0) {
-      throw ArgumentError.value(playIntegrityCloudProjectNumber,
-          'playIntegrityCloudProjectNumber', 'must be a positive number');
-    }
+  }) =>
+      configure(
+        FingerlyConfig(
+          apiKey: apiKey,
+          endpoint: endpoint,
+          consent: consent,
+          playIntegrityCloudProjectNumber: playIntegrityCloudProjectNumber,
+        ),
+      );
 
-    await _invokeVoid('configure', {
-      'apiKey': apiKey,
-      // Empty means "use the native default". Not null: the native signature
-      // takes a non-null string, and a null across the channel fails the
-      // argument check rather than falling back.
-      'endpoint': endpoint,
-      'platform': _platformName(),
-      'consent': consent.name,
-      // Sent only when set. The iOS plugin reads arguments by name and does
-      // not look at this one.
-      if (playIntegrityCloudProjectNumber != null)
-        'playIntegrityCloudProjectNumber': playIntegrityCloudProjectNumber,
-    });
-
-    _consent = consent;
-    return const Fingerly._();
-  }
-
-  /// The consent last given to the native SDK, by [load] or [setConsent].
+  /// The consent last given to the native SDK, by [load], [configure] or
+  /// [setConsent].
   ConsentState get consent => _consent;
 
   /// Record the user's answer, as the consent tool reports it.
@@ -156,50 +175,33 @@ class Fingerly {
     return _invokeVoid('setConsent', {'state': state.name});
   }
 
-  /// Collect and submit.
+  /// Collect and submit a single-pass `v: 3` identification.
   ///
-  /// Returns the server's answer, not a receipt for one. There is no second
-  /// call to make: the address lookup and the scoring happen on the request,
-  /// so [IdentifyResult.suspectScore] and [IdentifyResult.visitorId] are
-  /// populated by the time this resolves.
-  ///
-  /// Pass `submit: false` to collect without sending anything. Only
-  /// [IdentifyResult.report] is filled in then. The server's fields come back
-  /// empty, and [IdentifyResult.suspectScore] stays null rather than 0 — nobody
-  /// scored it, which is not the same as scoring it and finding nothing.
+  /// Returns the server's answer, not a receipt for one. When
+  /// [IdentifyResult.identifiable] is `false`, [IdentifyResult.visitorId] is
+  /// `""` and [IdentifyResult.visitorIsNew] is `false` (Option B). To inspect
+  /// local device signals without submitting to the server, call [collect].
   ///
   /// Pass `automatic: true` for a call the app makes on its own rather than
   /// in answer to the user (on start, on a timer, on returning to the
   /// foreground). An automatic call joins an identification already in
   /// flight instead of starting another, and waits out a transient failure
-  /// instead of repeating it at once. On Android it is accepted and has no
-  /// effect until the native Android SDK supports it.
+  /// instead of repeating it at once.
   ///
   /// Throws [FingerlyConsentException] while consent is not granted.
   Future<IdentifyResult> identify({
     String? tag,
-    bool submit = true,
     bool automatic = false,
   }) async {
     final raw = await _invoke<String>('identify', {
       'tag': tag,
-      'submit': submit,
+      'submit': true,
       'automatic': automatic,
     });
-    final json = _decode(raw);
-
-    if (submit) return IdentifyResult.fromJson(json);
-
-    // Everything but the report is ignored, so nothing the native side sends
-    // can pass for an answer when no server was asked.
-    final report = json['report'];
-    if (report is! Map<String, dynamic>) {
-      throw const FingerlyException('The SDK produced an unreadable report');
-    }
-    return IdentifyResult.reportOnly(SignalReport.fromJson(report));
+    return IdentifyResult.fromJson(_decode(raw));
   }
 
-  /// Run the sources and assemble the report, without submitting.
+  /// Run the sources and assemble the report locally, without submitting.
   ///
   /// Useful on its own: a debug screen, or seeing exactly what would be sent
   /// before agreeing to send it. Needs no key, but does need consent: throws
@@ -213,17 +215,28 @@ class Fingerly {
   /// The native SDK's version, which is the one that did the collecting.
   static Future<String> nativeVersion() => _invoke<String>('sdkVersion');
 
-  /// Delete the install record the native SDK keeps on the device.
+  /// Atomically erase the local `install_id` and hardware attestation key state
+  /// kept by the native SDK on this device.
   ///
-  /// Call it when a user asks for their data to be erased or deletes their
-  /// account, so the device stops presenting the install ID the server knows
-  /// it by. Needs no [load] and no consent, and sends nothing. Completes once
-  /// no record remains, including when there was none. The next
-  /// identification made with consent starts a new record; to stop
-  /// identifying as well, set consent to [ConsentState.denied] first, because
-  /// a call already running may write a fresh record.
+  /// **Strictly for user-initiated GDPR / privacy erasure and account
+  /// deletion.** Wipes both the local `install_id` record and local hardware
+  /// attestation key state (`Application Support/io.fingerly.sdk/` container
+  /// files and App Attest key state on iOS; the `install_id` record and
+  /// persistent `AndroidKeyStore` v3 ECDSA signing key on Android) so a future
+  /// re-consented session starts unlinked from any prior `visitorId`.
   ///
-  /// Throws a [FingerlyException] when the delete fails, and when the native
+  /// Do **not** call this method during routine sign-out, user switching, or
+  /// session rotation: unnecessary resets force hardware key re-attestation and
+  /// repeated `install_id` rotation (`>= 3` distinct IDs on a hardware key
+  /// within 24 hours triggers `tampering` churn detection).
+  ///
+  /// Needs no [load] and no consent, sends nothing over the network, and
+  /// completes once neither the `install_id` record nor local attestation key
+  /// state remains (including when nothing was stored). To stop identifying
+  /// after erasure as well, set consent to [ConsentState.denied] first so a
+  /// call already in flight cannot write a fresh record.
+  ///
+  /// Throws a [FingerlyException] when the delete fails, or when the native
   /// SDK in the app predates this call.
   static Future<void> deleteStoredIdentity() async {
     try {
@@ -291,13 +304,18 @@ Future<R?> _guard<R>(Future<R?> Function() body) async {
 
     // The native bridges set the error code to the HTTP status where there was
     // one, so a caller can tell a wrong key from an exhausted account without
-    // parsing a message.
+    // parsing a message. Negative codes (`-1`, `-3`) are local native sentinels.
     throw FingerlyException(
       error.message ?? 'The submission could not be sent',
-      status: int.tryParse(error.code),
+      status: _httpStatus(error.code),
       retryAfter: _retryAfter(error),
     );
   }
+}
+
+int? _httpStatus(String code) {
+  final parsed = int.tryParse(code);
+  return parsed != null && parsed > 0 ? parsed : null;
 }
 
 /// The wait a native transport failure carried, from `details.retryAfterMs`.
