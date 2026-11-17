@@ -71,11 +71,11 @@ kotlin {
 
 dependencies {
     // The SDK that does the collecting, from the repository added above.
-    implementation 'io.fingerly:fingerly:0.3.0'
+    implementation 'io.fingerly:fingerly:0.4.0'
 
     // The opt-in artifacts. `compileOnly` so the plugin can construct their
     // providers when the host app links them, without adding `<queries>` or
     // Play Services to an app that does not.
-    compileOnly 'io.fingerly:fingerly-app-checks:0.3.0'
-    compileOnly 'io.fingerly:fingerly-play-integrity:0.3.0'
+    compileOnly 'io.fingerly:fingerly-app-checks:0.4.0'
+    compileOnly 'io.fingerly:fingerly-play-integrity:0.4.0'
 }

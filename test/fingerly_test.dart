@@ -750,7 +750,7 @@ void main() {
         (call) async => switch (call.method) {
               'configure' => null,
               'collect' => jsonEncode(_report()),
-              'sdkVersion' => '0.3.0',
+              'sdkVersion' => '0.4.0',
               _ => throw MissingPluginException(),
             });
 
@@ -760,7 +760,7 @@ void main() {
 
     expect(report.schema, 2);
     expect(report.elapsedMs, 42);
-    expect(await Fingerly.nativeVersion(), '0.3.0');
+    expect(await Fingerly.nativeVersion(), '0.4.0');
   });
 
   group('deleteStoredIdentity (GDPR erasure)', () {
@@ -1022,12 +1022,12 @@ void main() {
       expect(pubspec, contains('version: 0.3.0'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
-      expect(podspec, contains("native_version = '0.3.0'"));
+      expect(podspec, contains("native_version = '0.4.0'"));
       expect(podspec, contains("s.version          = '0.3.0'"));
       expect(
         podspec,
         contains(
-          "native_sha256  = 'b3288cc4539b6c5b8bae226854a586473b2457489e69b2ac1f26e9f84f6add27'",
+          "native_sha256  = '962dcded8374e162a095c9373d7044e66532a327a002889347c547868cc64460'",
         ),
       );
       expect(podspec, contains("native_team_id = 'XGXX88HRR5'"));
@@ -1037,7 +1037,7 @@ void main() {
       expect(
         spm,
         contains(
-          '.package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.3.0")',
+          '.package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.4.0")',
         ),
       );
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
@@ -1045,14 +1045,14 @@ void main() {
       final gradle = File('android/build.gradle').readAsStringSync();
       expect(gradle, contains("version '0.3.0'"));
       expect(gradle, contains('mavenLocal()'));
-      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.3.0'"));
+      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
       expect(changelog, contains('## 0.3.0'));
 
       final readme = File('README.md').readAsStringSync();
       expect(readme, contains('fingerly_flutter: ^0.3.0'));
-      expect(readme, contains('io.fingerly:fingerly:0.3.0'));
+      expect(readme, contains('io.fingerly:fingerly:0.4.0'));
     });
   });
 }
