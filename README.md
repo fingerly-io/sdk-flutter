@@ -20,7 +20,7 @@
 
 ## What is this
 
-`fingerly_flutter` (`0.3.0`) is the Flutter binding to the Fingerly native iOS and Android SDKs (`0.3.0`), which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
+`fingerly_flutter` (`0.4.0`) is the Flutter binding to the Fingerly native iOS and Android SDKs (`0.4.0`), which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
 
 ## Getting started
 
@@ -29,7 +29,7 @@
 
    ```yaml
    dependencies:
-     fingerly_flutter: ^0.3.0
+     fingerly_flutter: ^0.4.0
    ```
 
 3. **Identify.**
@@ -52,6 +52,7 @@ Requires Flutter **3.10** or newer, iOS **13** or newer, and Android **5.0 (API
 ## Contents
 
 - [Identify](#identify)
+- [Named values](#named-values)
 - [Consent](#consent)
 - [Erasure](#erasure)
 - [Errors](#errors)
@@ -71,7 +72,7 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a shi
 
 - When `identifiable` is `false`, `visitorId` is `""` and `visitorIsNew` is `false`: the server never invents a visitor ID when the device signals are not enough. `visitorConfidence` can be `null` when the server did not say.
 - The score is a convenience for showing a result straight away. Each SDK key has a setting that hides it from apps, and then both fields are `null`, exactly as on a check nobody scored. An app cannot tell which it was, so read `null` as "no answer here", never as clean.
-- `triggers` lists the active risk signals and their weights when the key's audience receives them, and is `null` otherwise. Each `IdentifyTrigger` has its wire `signal` and a typed `riskSignal`, a `RiskSignal` such as `attestation_downgrade`, `probe_errors`, `fetch_metadata_missing`, `report_incomplete` or `fingerprint_suppressed`, which is null for a token this version does not know.
+- `triggers` lists the active risk signals and their weights when the key's audience receives them, and is `null` otherwise. Each `IdentifyTrigger` has the `signal` that fired and the `group` it is reported under, both compared with a `Signal` constant such as `Signal.attestationDowngrade` or `Signal.fingerprintSuppressed`, and a `confidence`, a `Confidence` constant.
 - The full signals behind a score are read on your backend, through the server-side event read by `requestId` or webhooks, or in the dashboard.
 - Send the `requestId` and `visitorId` to your own backend with the request they belong to, and let your backend decide: **the score in your hand came from a device you do not control**, and an app that branches on it locally is an app whose branch can be patched out.
 
@@ -83,6 +84,39 @@ The key is a **publishable** SDK key from the dashboard, and it is safe in a shi
 Call `collect()` to inspect the client `SignalReport` locally without sending anything to the server.
 
 `Fingerly.nativeVersion()` returns the version of the native SDK that did the collecting.
+
+## Named values
+
+The fixed strings the API returns have names, the same names the other Fingerly SDKs use. Each is a class of `static const String` members, its value in lowerCamelCase (`SuspectLevel.high` is `'high'`, `Signal.fingerprintSuppressed` is `'fingerprint_suppressed'`), so the fields stay `String`, a comparison with the plain string still works, and a value a newer server adds reaches the app unchanged:
+
+```dart
+final result = await fingerly.identify(tag: 'checkout');
+
+if (result.state == EventState.unavailable) {
+  // The network lookup could not run, so the check was not scored.
+}
+
+switch (result.suspectLevel) {
+  case SuspectLevel.high:
+    // Show a step-up screen while your backend makes the decision.
+    break;
+  case null:
+    // Not scored, or the score is hidden from apps.
+    break;
+  default:
+    break;
+}
+```
+
+| Constant | Members | Where it appears |
+| --- | --- | --- |
+| `SuspectLevel` | `low`, `medium`, `high` | `IdentifyResult.suspectLevel`. |
+| `EventState` | `enriched`, `unavailable`, `pending` | `IdentifyResult.state`. An answer is never `pending`, which only a server-side event read reports. |
+| `Signal` | Every signal group and detector the server reports, such as `Signal.jailbreak` and `Signal.vpnPublic` | `IdentifyTrigger.signal` and `IdentifyTrigger.group`, and the event your backend reads. |
+| `Confidence` | `low`, `medium`, `high` | `IdentifyTrigger.confidence`. |
+| `ConsentState` | `granted`, `pending`, `denied` | An enum: `consent:` on `Fingerly.load`, `setConsent`, `consent` and `FingerlyConsentException.state`. |
+
+Each class also has `values`, the full list. Keep a `default` in a `switch` over one of them: the list grows when the server learns something new.
 
 ## Consent
 
@@ -168,12 +202,12 @@ Five statuses, never a hole: `ok`, `unsupported`, `blocked`, `timeout`, `error`.
 
 ## Native SDKs
 
-The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.3.0`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.3.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
+The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.4.0`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.4.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
 
 <details>
 <summary><b>iOS</b></summary>
 
-The Flutter Swift package resolves `0.3.0` from `https://github.com/fingerly-io/sdk-ios`. With CocoaPods, `pod install` downloads the same framework from `https://maven.fingerly.io/ios/`, so nothing depends on the CocoaPods trunk. Both need network access on the first build only.
+The Flutter Swift package resolves `0.4.0` from `https://github.com/fingerly-io/sdk-ios`. With CocoaPods, `pod install` downloads the same framework from `https://maven.fingerly.io/ios/`, so nothing depends on the CocoaPods trunk. Both need network access on the first build only.
 
 The podspec pins both the framework's SHA-256 and the Apple team that must have signed it. A download is kept only when its checksum matches and the XCFramework and every slice carry a valid signature under an Apple-issued certificate naming that team. A framework already in place is kept only when its record names the pinned checksum and team and its signature still verifies. An empty or malformed pin fails the install.
 
@@ -184,14 +218,14 @@ The Play Integrity project number passed to `load` is ignored on iOS.
 <details>
 <summary><b>Android</b></summary>
 
-The plugin depends on `io.fingerly:fingerly:0.3.0` from Fingerly's Maven repository, `https://maven.fingerly.io`, and adds that repository to the build itself, so no host-project repository override is required.
+The plugin depends on `io.fingerly:fingerly:0.4.0` from Fingerly's Maven repository, `https://maven.fingerly.io`, and adds that repository to the build itself, so no host-project repository override is required.
 
 **Installed-app checks are opt-in.** The checks for root managers, hooking frameworks and app cloners by package name ship in a separate artifact, `io.fingerly:fingerly-app-checks`, because Google Play treats the list of installed apps as personal and sensitive data. This plugin depends on `io.fingerly:fingerly` only. If your app can justify the package visibility in its Play review and wants these checks, add the artifact to your app's Android module, at the same version as `io.fingerly:fingerly`, and declare "App activity: Installed apps" in the Data safety form. The plugin finds the artifact and registers its provider on every `Fingerly.load`, so there is no native code to write:
 
 ```groovy
 // android/app/build.gradle
 dependencies {
-    implementation 'io.fingerly:fingerly-app-checks:0.3.0'
+    implementation 'io.fingerly:fingerly-app-checks:0.4.0'
 }
 ```
 
@@ -202,7 +236,7 @@ Without it, the report carries no installed-app fields and nothing about other a
 ```groovy
 // android/app/build.gradle
 dependencies {
-    implementation 'io.fingerly:fingerly-play-integrity:0.3.0'
+    implementation 'io.fingerly:fingerly-play-integrity:0.4.0'
 }
 ```
 
@@ -221,7 +255,7 @@ A provider of your own, registered from native code with `FingerlyBridge.setPlay
 <details>
 <summary><b>Working against a local native build</b></summary>
 
-For iOS, run `scripts/build-xcframework.sh` in the iOS checkout and set `FINGERLY_XCFRAMEWORK_PATH` to `build/Fingerly.xcframework` (or `build/Fingerly-0.3.0.xcframework.zip`), or unzip it into this package's `ios/Frameworks` directory. For Android, build the SDK's artifacts into your local Maven repository, which the plugin checks before Fingerly's repository:
+For iOS, run `scripts/build-xcframework.sh` in the iOS checkout and set `FINGERLY_XCFRAMEWORK_PATH` to `build/Fingerly.xcframework` (or `build/Fingerly-0.4.0.xcframework.zip`), or unzip it into this package's `ios/Frameworks` directory. For Android, build the SDK's artifacts into your local Maven repository, which the plugin checks before Fingerly's repository:
 
 ```sh
 cd ../android && ./gradlew publishToMavenLocal

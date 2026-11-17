@@ -40,6 +40,7 @@ import 'package:flutter/services.dart';
 
 import 'src/types.dart';
 
+export 'src/constants.dart';
 export 'src/types.dart';
 
 /// The channel name. Matches `FingerlyPlugin.swift` and the Kotlin equivalent;
@@ -89,7 +90,7 @@ class Fingerly {
   const Fingerly._();
 
   /// The Flutter plugin package version (`pubspec.yaml`).
-  static const String pluginVersion = '0.3.0';
+  static const String pluginVersion = '0.4.0';
 
   /// Configure the SDK from a [FingerlyConfig] and return a client.
   ///

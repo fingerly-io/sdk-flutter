@@ -10,6 +10,8 @@
 /// it was looking for.
 library;
 
+import 'constants.dart';
+
 // Readers that check a member's type instead of casting it. `as String?` on a
 // member that arrived as a number throws a `TypeError` out of `identify()`
 // after the server has already answered, which is the exception the paragraph
@@ -119,86 +121,6 @@ enum ConsentState {
       };
 }
 
-/// Canonical v3 risk signal catalogue (`sdks/contract/openapi.json` and
-/// `sdks/contract/v3-manifest.json`).
-enum RiskSignal {
-  // Cross-platform signals
-  highActivity('high_activity'),
-  tampering('tampering'),
-  deviceFarm('device_farm'),
-  developerTools('developer_tools'),
-  geoMismatch('geo_mismatch'),
-  deviceInconsistent('device_inconsistent'),
-  reportIncomplete('report_incomplete'),
-  fingerprintSuppressed('fingerprint_suppressed'),
-
-  // Network & IP intelligence signals
-  tor('tor'),
-  proxy('proxy'),
-  residentialProxy('residential_proxy'),
-  residentialProxyLowConfidence('residential_proxy_low_confidence'),
-  residentialProxyMediumConfidence('residential_proxy_medium_confidence'),
-  residentialProxyHighConfidence('residential_proxy_high_confidence'),
-  vpnPublic('vpn_public'),
-  vpnTimezone('vpn_timezone'),
-  vpnRelay('vpn_relay'),
-  vpnMobile('vpn_mobile'),
-  vpnOsMismatch('vpn_os_mismatch'),
-  vpnLowConfidence('vpn_low_confidence'),
-  vpnMediumConfidence('vpn_medium_confidence'),
-  vpnHighConfidence('vpn_high_confidence'),
-  ipBlocklistEmailSpam('ip_blocklist_email_spam'),
-  ipBlocklistAttackSource('ip_blocklist_attack_source'),
-  ipAbuser('ip_abuser'),
-  datacenterIp('datacenter_ip'),
-  bogonIp('bogon_ip'),
-  anycastIp('anycast_ip'),
-
-  // Browser-only signals
-  incognito('incognito'),
-  badBot('bad_bot'),
-  automation('automation'),
-  fetchMetadataMissing('fetch_metadata_missing'),
-  antidetectBrowser('antidetect_browser'),
-  virtualMachine('virtual_machine'),
-  privacySettings('privacy_settings'),
-  embeddedWebView('embedded_web_view'),
-  remoteControl('remote_control'),
-
-  // Native-only signals
-  emulator('emulator'),
-  rootApps('root_apps'),
-  appCloner('app_cloner'),
-  jailbreak('jailbreak'),
-  simulator('simulator'),
-  frida('frida'),
-  mitmAttack('mitm_attack'),
-  activeCall('active_call'),
-  attestationMissing('attestation_missing'),
-  attestationDowngrade('attestation_downgrade'),
-  appAttestKeyChurn('app_attest_key_churn'),
-  playDeviceIntegrityFailed('play_device_integrity_failed'),
-  playAppUnrecognized('play_app_unrecognized'),
-  attestationFailed('attestation_failed'),
-  probeErrors('probe_errors'),
-  customRootCa('custom_root_ca'),
-  secondaryUserProfile('secondary_user_profile');
-
-  const RiskSignal(this.wire);
-
-  /// Exact wire token used by the server and OpenAPI schema.
-  final String wire;
-
-  static final Map<String, RiskSignal> _byWire = {
-    for (final signal in RiskSignal.values) signal.wire: signal,
-  };
-
-  /// Looks up a known [RiskSignal] by its wire token, or returns null for an
-  /// unrecognised token from a newer server.
-  static RiskSignal? tryParse(Object? value) =>
-      value is String ? _byWire[value] : null;
-}
-
 /// One active risk trigger (`IdentifyTriggerOut` in OpenAPI).
 class IdentifyTrigger {
   const IdentifyTrigger({
@@ -208,15 +130,15 @@ class IdentifyTrigger {
     this.confidence,
   });
 
-  /// Canonical wire identifier, such as `attestation_failed` or `tampering`.
+  /// The raw detector that fired, such as [Signal.vpnPublic]. Compare it
+  /// with a [Signal] member; a signal a newer server adds arrives unchanged.
   final String signal;
 
-  /// Typed [RiskSignal] when [signal] belongs to the known v3 catalogue, or
-  /// null when emitted by a newer server.
-  RiskSignal? get riskSignal => RiskSignal.tryParse(signal);
-
+  /// The group [signal] is reported under, such as [Signal.vpn].
   final String? group;
   final int? weight;
+
+  /// How sure the server is, a [Confidence] member.
   final String? confidence;
 
   static IdentifyTrigger? tryFromJson(Map<String, dynamic> json) {
@@ -487,7 +409,8 @@ class IdentifyResult {
   /// `Idempotency-Key`.
   final bool duplicate;
 
-  /// The server's disposition of the check (`enriched` or `unavailable`).
+  /// The server's disposition of the check, [EventState.enriched] or
+  /// [EventState.unavailable]. Empty when the native bridge omitted it.
   final String state;
 
   /// Why, when [state] needs explaining. Empty when omitted.
@@ -499,8 +422,8 @@ class IdentifyResult {
   /// collapse them with `?? 0` — that turns an unknown into a clean one.
   final int? suspectScore;
 
-  /// The score as a band — `low`, `medium`, `high`. Null whenever
-  /// [suspectScore] is null.
+  /// The score as a band, a [SuspectLevel] member such as
+  /// [SuspectLevel.high]. Null whenever [suspectScore] is null.
   final String? suspectLevel;
 
   /// Active risk signals and weights when returned by the caller's audience

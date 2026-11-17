@@ -530,7 +530,7 @@ void main() {
       expect(mismatched.suspectLevel, isNull);
     });
 
-    test('decodes v3 triggers and maps canonical RiskSignal values', () {
+    test('decodes v3 triggers and compares them with the Signal constants', () {
       final result = IdentifyResult.fromJson(_identifyResult()
         ..['triggers'] = [
           {
@@ -540,8 +540,8 @@ void main() {
             'confidence': 'high',
           },
           {
-            'signal': 'custom_root_ca',
-            'group': 'custom_root_ca',
+            'signal': 'vpn_public',
+            'group': 'vpn',
             'weight': 0,
             'confidence': 'medium',
           },
@@ -554,83 +554,151 @@ void main() {
         ]);
 
       expect(result.triggers, hasLength(3));
-      expect(result.triggers![0].signal, 'attestation_failed');
-      expect(result.triggers![0].riskSignal, RiskSignal.attestationFailed);
+      expect(result.triggers![0].signal, Signal.attestationFailed);
       expect(result.triggers![0].weight, 30);
-      expect(result.triggers![0].confidence, 'high');
-      expect(result.triggers![1].riskSignal, RiskSignal.customRootCa);
+      expect(result.triggers![0].confidence, Confidence.high);
+      expect(result.triggers![1].signal, Signal.vpnPublic);
+      expect(result.triggers![1].group, Signal.vpn);
       expect(result.triggers![1].weight, 0);
+      expect(result.triggers![1].confidence, Confidence.medium);
+      // A signal a newer server adds arrives unchanged.
       expect(result.triggers![2].signal, 'future_server_signal');
-      expect(result.triggers![2].riskSignal, isNull);
+      expect(Signal.values, isNot(contains('future_server_signal')));
     });
 
-    test('enumerates all orthogonal v3 risk signals', () {
-      const expectedSignals = [
-        'high_activity',
-        'tampering',
-        'device_farm',
-        'developer_tools',
-        'geo_mismatch',
-        'device_inconsistent',
-        'report_incomplete',
-        'fingerprint_suppressed',
-        'tor',
-        'proxy',
-        'residential_proxy',
-        'residential_proxy_low_confidence',
-        'residential_proxy_medium_confidence',
-        'residential_proxy_high_confidence',
-        'vpn_public',
-        'vpn_timezone',
-        'vpn_relay',
-        'vpn_mobile',
-        'vpn_os_mismatch',
-        'vpn_low_confidence',
-        'vpn_medium_confidence',
-        'vpn_high_confidence',
-        'ip_blocklist_email_spam',
-        'ip_blocklist_attack_source',
-        'ip_abuser',
-        'datacenter_ip',
-        'bogon_ip',
-        'anycast_ip',
-        'incognito',
-        'bad_bot',
-        'automation',
-        'fetch_metadata_missing',
-        'antidetect_browser',
-        'virtual_machine',
-        'privacy_settings',
-        'embedded_web_view',
-        'remote_control',
-        'emulator',
-        'root_apps',
-        'app_cloner',
-        'jailbreak',
-        'simulator',
-        'frida',
-        'mitm_attack',
-        'active_call',
-        'attestation_missing',
-        'attestation_downgrade',
-        'app_attest_key_churn',
-        'play_device_integrity_failed',
-        'play_app_unrecognized',
-        'attestation_failed',
-        'probe_errors',
-        'custom_root_ca',
-        'secondary_user_profile',
-      ];
+    test('Signal names every server signal group and detector', () {
+      // The server's list (server/domain/risk), member by member.
+      const serverSignals = <String, String>{
+        Signal.activeCall: 'active_call',
+        Signal.androidEmulator: 'android_emulator',
+        Signal.antidetectBrowser: 'antidetect_browser',
+        Signal.anycastIp: 'anycast_ip',
+        Signal.appCloner: 'app_cloner',
+        Signal.attestationDowngrade: 'attestation_downgrade',
+        Signal.attestationFailed: 'attestation_failed',
+        Signal.attestationMissing: 'attestation_missing',
+        Signal.automation: 'automation',
+        Signal.badBot: 'bad_bot',
+        Signal.bogonIp: 'bogon_ip',
+        Signal.bot: 'bot',
+        Signal.browserTampering: 'browser_tampering',
+        Signal.clonedApp: 'cloned_app',
+        Signal.customRootCa: 'custom_root_ca',
+        Signal.datacenterIp: 'datacenter_ip',
+        Signal.datacenterProxy: 'datacenter_proxy',
+        Signal.developerTools: 'developer_tools',
+        Signal.deviceActivityHigh: 'device_activity_high',
+        Signal.deviceActivityVeryHigh: 'device_activity_very_high',
+        Signal.deviceFarm: 'device_farm',
+        Signal.deviceInconsistent: 'device_inconsistent',
+        Signal.embeddedWebView: 'embedded_web_view',
+        Signal.emulator: 'emulator',
+        Signal.fetchMetadataMissing: 'fetch_metadata_missing',
+        Signal.fingerprintSuppressed: 'fingerprint_suppressed',
+        Signal.frida: 'frida',
+        Signal.fridaDetected: 'frida_detected',
+        Signal.geoMismatch: 'geo_mismatch',
+        Signal.highActivity: 'high_activity',
+        Signal.incognito: 'incognito',
+        Signal.incognitoMode: 'incognito_mode',
+        Signal.iosSimulator: 'ios_simulator',
+        Signal.ipAbuser: 'ip_abuser',
+        Signal.ipBlocklist: 'ip_blocklist',
+        Signal.ipBlocklistAttackSource: 'ip_blocklist_attack_source',
+        Signal.ipBlocklistEmailSpam: 'ip_blocklist_email_spam',
+        Signal.ipReputation: 'ip_reputation',
+        Signal.jailbreak: 'jailbreak',
+        Signal.jailbrokenDevice: 'jailbroken_device',
+        Signal.locationSpoofing: 'location_spoofing',
+        Signal.mitmAttack: 'mitm_attack',
+        Signal.networkAnomaly: 'network_anomaly',
+        Signal.playAppUnrecognized: 'play_app_unrecognized',
+        Signal.playDeviceIntegrityFailed: 'play_device_integrity_failed',
+        Signal.privacySettings: 'privacy_settings',
+        Signal.probeErrors: 'probe_errors',
+        Signal.proxy: 'proxy',
+        Signal.remoteControl: 'remote_control',
+        Signal.repeatedReinstall: 'repeated_reinstall',
+        Signal.reportIncomplete: 'report_incomplete',
+        Signal.residentialProxy: 'residential_proxy',
+        Signal.residentialProxyHighConfidence:
+            'residential_proxy_high_confidence',
+        Signal.residentialProxyLowConfidence:
+            'residential_proxy_low_confidence',
+        Signal.residentialProxyMediumConfidence:
+            'residential_proxy_medium_confidence',
+        Signal.rootApps: 'root_apps',
+        Signal.rootedDevice: 'rooted_device',
+        Signal.secondaryUserProfile: 'secondary_user_profile',
+        Signal.simulator: 'simulator',
+        Signal.tampering: 'tampering',
+        Signal.tor: 'tor',
+        Signal.virtualMachine: 'virtual_machine',
+        Signal.vpn: 'vpn',
+        Signal.vpnHighConfidence: 'vpn_high_confidence',
+        Signal.vpnLowConfidence: 'vpn_low_confidence',
+        Signal.vpnMediumConfidence: 'vpn_medium_confidence',
+        Signal.vpnMobile: 'vpn_mobile',
+        Signal.vpnOsMismatch: 'vpn_os_mismatch',
+        Signal.vpnPublic: 'vpn_public',
+        Signal.vpnRelay: 'vpn_relay',
+        Signal.vpnTimezone: 'vpn_timezone',
+        Signal.webTicketInvalid: 'web_ticket_invalid',
+        Signal.webTicketMissing: 'web_ticket_missing',
+      };
 
-      expect(
-        RiskSignal.values.map((signal) => signal.wire).toList(),
-        expectedSignals,
-      );
-      for (final wire in expectedSignals) {
-        expect(RiskSignal.tryParse(wire)?.wire, wire);
+      expect(serverSignals, hasLength(73));
+      for (final entry in serverSignals.entries) {
+        expect(entry.key, entry.value);
       }
-      expect(RiskSignal.tryParse('unknown_signal'), isNull);
-      expect(RiskSignal.tryParse(42), isNull);
+      expect(Signal.values.toSet(), serverSignals.values.toSet());
+      expect(Signal.values, hasLength(73), reason: 'no duplicates');
+      expect(Signal.values, isNot(contains('app_attest_key_churn')));
+    });
+
+    test('the level, confidence, state and consent constants match the server',
+        () {
+      expect(SuspectLevel.values, ['low', 'medium', 'high']);
+      expect(SuspectLevel.low, 'low');
+      expect(SuspectLevel.medium, 'medium');
+      expect(SuspectLevel.high, 'high');
+
+      expect(Confidence.values, ['low', 'medium', 'high']);
+      expect(Confidence.low, 'low');
+      expect(Confidence.medium, 'medium');
+      expect(Confidence.high, 'high');
+
+      expect(EventState.values, ['pending', 'enriched', 'unavailable']);
+      expect(EventState.pending, 'pending');
+      expect(EventState.enriched, 'enriched');
+      expect(EventState.unavailable, 'unavailable');
+
+      expect(ConsentState.values.map((state) => state.name).toList(),
+          ['granted', 'pending', 'denied']);
+    });
+
+    test('result fields compare and switch on the constants', () {
+      final result = IdentifyResult.fromJson(_identifyResult()
+        ..['state'] = 'enriched'
+        ..['suspectScore'] = 80
+        ..['suspectLevel'] = 'high');
+
+      expect(result.state, EventState.enriched);
+      expect(result.suspectLevel, SuspectLevel.high);
+      final band = switch (result.suspectLevel) {
+        SuspectLevel.high => 'review',
+        SuspectLevel.medium || SuspectLevel.low => 'allow',
+        _ => 'not scored',
+      };
+      expect(band, 'review');
+
+      // Values a newer server adds reach the app unchanged.
+      final newer = IdentifyResult.fromJson(_identifyResult()
+        ..['state'] = 'state_from_a_newer_server'
+        ..['suspectScore'] = 50
+        ..['suspectLevel'] = 'level_from_a_newer_server');
+      expect(newer.state, 'state_from_a_newer_server');
+      expect(newer.suspectLevel, 'level_from_a_newer_server');
     });
 
     test('identify forwards automatic and removes retired submit/tiers options',
@@ -682,7 +750,7 @@ void main() {
         (call) async => switch (call.method) {
               'configure' => null,
               'collect' => jsonEncode(_report()),
-              'sdkVersion' => '0.3.0',
+              'sdkVersion' => '0.4.0',
               _ => throw MissingPluginException(),
             });
 
@@ -692,7 +760,7 @@ void main() {
 
     expect(report.schema, 2);
     expect(report.elapsedMs, 42);
-    expect(await Fingerly.nativeVersion(), '0.3.0');
+    expect(await Fingerly.nativeVersion(), '0.4.0');
   });
 
   group('deleteStoredIdentity (GDPR erasure)', () {
@@ -944,22 +1012,22 @@ void main() {
     });
   });
 
-  group('0.3.0 version parity', () {
+  group('0.4.0 version parity', () {
     test(
-        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.3.0',
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.0',
         () {
-      expect(Fingerly.pluginVersion, '0.3.0');
+      expect(Fingerly.pluginVersion, '0.4.0');
 
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec, contains('version: 0.3.0'));
+      expect(pubspec, contains('version: 0.4.0'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
-      expect(podspec, contains("native_version = '0.3.0'"));
-      expect(podspec, contains("s.version          = '0.3.0'"));
+      expect(podspec, contains("native_version = '0.4.0'"));
+      expect(podspec, contains("s.version          = '0.4.0'"));
       expect(
         podspec,
         contains(
-          "native_sha256  = 'b3288cc4539b6c5b8bae226854a586473b2457489e69b2ac1f26e9f84f6add27'",
+          "native_sha256  = '962dcded8374e162a095c9373d7044e66532a327a002889347c547868cc64460'",
         ),
       );
       expect(podspec, contains("native_team_id = 'XGXX88HRR5'"));
@@ -969,22 +1037,22 @@ void main() {
       expect(
         spm,
         contains(
-          '.package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.3.0")',
+          '.package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.4.0")',
         ),
       );
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final gradle = File('android/build.gradle').readAsStringSync();
-      expect(gradle, contains("version '0.3.0'"));
+      expect(gradle, contains("version '0.4.0'"));
       expect(gradle, contains('mavenLocal()'));
-      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.3.0'"));
+      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
-      expect(changelog, contains('## 0.3.0'));
+      expect(changelog, contains('## 0.4.0'));
 
       final readme = File('README.md').readAsStringSync();
-      expect(readme, contains('fingerly_flutter: ^0.3.0'));
-      expect(readme, contains('io.fingerly:fingerly:0.3.0'));
+      expect(readme, contains('fingerly_flutter: ^0.4.0'));
+      expect(readme, contains('io.fingerly:fingerly:0.4.0'));
     });
   });
 }
