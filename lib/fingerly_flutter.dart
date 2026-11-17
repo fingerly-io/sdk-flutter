@@ -40,6 +40,7 @@ import 'package:flutter/services.dart';
 
 import 'src/types.dart';
 
+export 'src/constants.dart';
 export 'src/types.dart';
 
 /// The channel name. Matches `FingerlyPlugin.swift` and the Kotlin equivalent;
