@@ -39,7 +39,7 @@
 
    final fingerly = await Fingerly.load(
      apiKey: 'fly_pk_production_…',
-     consent: ConsentState.granted, // only once you have consent (or another lawful basis)
+     consent: ConsentState.granted, // only once you have consent (or know none is required)
    );
    final result = await fingerly.identify(tag: 'checkout');
 
@@ -139,7 +139,7 @@ fingerly.consent; // granted, pending or denied
 | `setConsent(state)` | Records the decision. Safe to call repeatedly. |
 | `consent` | The state last given to the native SDK, read-only. |
 
-The default is `pending`, so an integration that never mentions consent identifies nobody. Pass `consent: ConsentState.granted` to `load` only when you already have consent, or another lawful basis.
+The default is `pending`, so an integration that never mentions consent identifies nobody. Pass `consent: ConsentState.granted` to `load` only once collection is permitted for this user: they consented, or the applicable law does not require consent. A GDPR lawful basis such as legitimate interest is not enough on its own.
 
 `setConsent` changes `consent` straight away, and the native SDK receives changes in the order they were made, so an `identify()` started after it sees the new state even if the returned future was not awaited. Await it to hear about a failure.
 

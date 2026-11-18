@@ -23,8 +23,8 @@
 /// import 'package:fingerly_flutter/fingerly_flutter.dart';
 ///
 /// final fingerly = await Fingerly.load(apiKey: 'fly_pk_production_…');
-/// // From the consent tool, once the user has agreed (or another lawful basis
-/// // applies).
+/// // From the consent tool, once the user has agreed (or you know none is
+/// // required).
 /// await fingerly.setConsent(ConsentState.granted);
 /// final result = await fingerly.identify(tag: 'checkout');
 ///
@@ -133,7 +133,9 @@ class Fingerly {
   /// call [setConsent] once the app's consent tool has an answer, and until
   /// it is [ConsentState.granted], [identify] and [collect] throw
   /// [FingerlyConsentException]. Pass [ConsentState.granted] here only once
-  /// the user has agreed, or where another lawful basis applies. Loading
+  /// collection is permitted for this user: they consented, or the law that
+  /// applies to them does not require consent. A GDPR lawful basis such as
+  /// legitimate interest is not enough on its own. Loading
   /// collects and sends nothing, whatever the consent, and the state passed
   /// here replaces whatever the native SDK held before.
   ///
