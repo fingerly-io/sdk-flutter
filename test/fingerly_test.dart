@@ -1012,18 +1012,18 @@ void main() {
     });
   });
 
-  group('0.4.1 version parity', () {
+  group('0.4.2 version parity', () {
     test(
-        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.1',
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.2',
         () {
-      expect(Fingerly.pluginVersion, '0.4.1');
+      expect(Fingerly.pluginVersion, '0.4.2');
 
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec, contains('version: 0.4.1'));
+      expect(pubspec, contains('version: 0.4.2'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
       expect(podspec, contains("native_version = '0.4.1'"));
-      expect(podspec, contains("s.version          = '0.4.1'"));
+      expect(podspec, contains("s.version          = '0.4.2'"));
       expect(
         podspec,
         contains(
@@ -1043,15 +1043,20 @@ void main() {
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final gradle = File('android/build.gradle').readAsStringSync();
-      expect(gradle, contains("version '0.4.1'"));
+      expect(gradle, contains("version '0.4.2'"));
       expect(gradle, contains('mavenLocal()'));
+      // An app that leaves out the optional artifacts must still pass R8.
+      expect(gradle, contains("consumerProguardFiles 'consumer-rules.pro'"));
+      final rules = File('android/consumer-rules.pro').readAsStringSync();
+      expect(rules, contains('-dontwarn io.fingerly.sdk.appchecks.**'));
+      expect(rules, contains('-dontwarn io.fingerly.sdk.playintegrity.**'));
       expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
-      expect(changelog, contains('## 0.4.1'));
+      expect(changelog, contains('## 0.4.2'));
 
       final readme = File('README.md').readAsStringSync();
-      expect(readme, contains('fingerly_flutter: ^0.4.1'));
+      expect(readme, contains('fingerly_flutter: ^0.4.2'));
       expect(readme, contains('io.fingerly:fingerly:0.4.0'));
     });
   });

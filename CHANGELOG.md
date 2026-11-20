@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2
+
+- Fixes minified Android release builds: R8 stopped with "Missing class
+  io.fingerly.sdk.appchecks.FingerlyAppChecks" in any app that does not add
+  the optional `io.fingerly:fingerly-app-checks` and
+  `io.fingerly:fingerly-play-integrity` artifacts. The plugin now ships
+  consumer ProGuard rules for them, as the React Native bridge does. Nothing
+  collected or sent changes.
+
 ## 0.4.1
 
 - Update the native iOS dependency (`sdk-ios` / `Fingerly.xcframework`) to
