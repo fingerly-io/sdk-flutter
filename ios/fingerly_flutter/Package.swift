@@ -43,7 +43,7 @@ let package = Package(
     ] + (localFrameworkPath == nil ? [
         // The public binary package, at the same native version the podspec
         // downloads, so both iOS paths ship the same framework.
-        .package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.4.0"),
+        .package(url: "https://github.com/fingerly-io/sdk-ios", exact: "0.4.1"),
     ] : []),
     targets: [
         .target(

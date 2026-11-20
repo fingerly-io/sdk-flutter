@@ -20,7 +20,7 @@
 
 ## What is this
 
-`fingerly_flutter` (`0.4.0`) is the Flutter binding to the Fingerly native iOS and Android SDKs (`0.4.0`), which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
+`fingerly_flutter` (`0.4.1`) is the Flutter binding to the Fingerly native iOS (`0.4.1`) and Android (`0.4.0`) SDKs, which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
 
 ## Getting started
 
@@ -29,7 +29,7 @@
 
    ```yaml
    dependencies:
-     fingerly_flutter: ^0.4.0
+     fingerly_flutter: ^0.4.1
    ```
 
 3. **Identify.**
@@ -202,12 +202,12 @@ Five statuses, never a hole: `ok`, `unsupported`, `blocked`, `timeout`, `error`.
 
 ## Native SDKs
 
-The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.4.0`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.4.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
+The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.4.1`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.4.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
 
 <details>
 <summary><b>iOS</b></summary>
 
-The Flutter Swift package resolves `0.4.0` from `https://github.com/fingerly-io/sdk-ios`. With CocoaPods, `pod install` downloads the same framework from `https://maven.fingerly.io/ios/`, so nothing depends on the CocoaPods trunk. Both need network access on the first build only.
+The Flutter Swift package resolves `0.4.1` from `https://github.com/fingerly-io/sdk-ios`. With CocoaPods, `pod install` downloads the same framework from `https://maven.fingerly.io/ios/`, so nothing depends on the CocoaPods trunk. Both need network access on the first build only.
 
 The podspec pins both the framework's SHA-256 and the Apple team that must have signed it. A download is kept only when its checksum matches and the XCFramework and every slice carry a valid signature under an Apple-issued certificate naming that team. A framework already in place is kept only when its record names the pinned checksum and team and its signature still verifies. An empty or malformed pin fails the install.
 
@@ -255,7 +255,7 @@ A provider of your own, registered from native code with `FingerlyBridge.setPlay
 <details>
 <summary><b>Working against a local native build</b></summary>
 
-For iOS, run `scripts/build-xcframework.sh` in the iOS checkout and set `FINGERLY_XCFRAMEWORK_PATH` to `build/Fingerly.xcframework` (or `build/Fingerly-0.4.0.xcframework.zip`), or unzip it into this package's `ios/Frameworks` directory. For Android, build the SDK's artifacts into your local Maven repository, which the plugin checks before Fingerly's repository:
+For iOS, run `scripts/build-xcframework.sh` in the iOS checkout and set `FINGERLY_XCFRAMEWORK_PATH` to `build/Fingerly.xcframework` (or `build/Fingerly-0.4.1.xcframework.zip`), or unzip it into this package's `ios/Frameworks` directory. For Android, build the SDK's artifacts into your local Maven repository, which the plugin checks before Fingerly's repository:
 
 ```sh
 cd ../android && ./gradlew publishToMavenLocal

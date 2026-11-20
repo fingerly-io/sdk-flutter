@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1
+
+- Update the native iOS dependency (`sdk-ios` / `Fingerly.xcframework`) to
+  `0.4.1`, which fixes a crash on every `identify()` in iOS apps built for
+  release. The Android dependency stays `0.4.0`. Nothing collected or sent
+  changes.
+- The documentation of `ConsentState.granted` says when to set it: once
+  collection is permitted for the user, because they consented or the law
+  that applies does not require consent. A GDPR lawful basis alone is not
+  enough. Behaviour is unchanged.
+
 ## 0.4.0
 
 - Named constants for the fixed values the API returns, the same names the

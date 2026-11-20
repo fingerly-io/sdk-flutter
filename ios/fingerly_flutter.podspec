@@ -16,8 +16,8 @@ Pod::Spec.new do |s|
   # pin is what makes a changed file on the download host an install failure.
   # The team is the Apple team that must have signed the framework, a copy of
   # the pin in the iOS SDK's scripts/signing-team.sh.
-  native_version = '0.4.0'
-  native_sha256  = '962dcded8374e162a095c9373d7044e66532a327a002889347c547868cc64460'
+  native_version = '0.4.1'
+  native_sha256  = '74bb15a4b72b55524f4d2cb8567037c7f76088747bb5c866dfee61eb5f7d056e'
   native_team_id = 'XGXX88HRR5'
   native_url     = "https://maven.fingerly.io/ios/Fingerly-#{native_version}.xcframework.zip"
 
@@ -26,7 +26,7 @@ Pod::Spec.new do |s|
   # macOS filesystem; naming this pod `fingerly` makes the native target depend on
   # itself and prevents every Flutter iOS application from compiling.
   s.name             = 'fingerly_flutter'
-  s.version          = '0.4.0'
+  s.version          = '0.4.1'
   s.summary          = 'Device intelligence and fraud signals for Flutter.'
   s.description      = <<~DESC
     The Flutter binding for the Fingerly fraud detection platform. Calls the
