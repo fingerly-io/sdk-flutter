@@ -570,6 +570,7 @@ void main() {
       // The server's list (server/domain/risk), member by member.
       const serverSignals = <String, String>{
         Signal.activeCall: 'active_call',
+        Signal.aiSpoofed: 'ai_spoofed',
         Signal.androidEmulator: 'android_emulator',
         Signal.antidetectBrowser: 'antidetect_browser',
         Signal.anycastIp: 'anycast_ip',
@@ -599,6 +600,7 @@ void main() {
         Signal.fridaDetected: 'frida_detected',
         Signal.geoMismatch: 'geo_mismatch',
         Signal.highActivity: 'high_activity',
+        Signal.identityObfuscated: 'identity_obfuscated',
         Signal.incognito: 'incognito',
         Signal.incognitoMode: 'incognito_mode',
         Signal.iosSimulator: 'ios_simulator',
@@ -642,17 +644,16 @@ void main() {
         Signal.vpnOsMismatch: 'vpn_os_mismatch',
         Signal.vpnPublic: 'vpn_public',
         Signal.vpnRelay: 'vpn_relay',
-        Signal.vpnTimezone: 'vpn_timezone',
         Signal.webTicketInvalid: 'web_ticket_invalid',
         Signal.webTicketMissing: 'web_ticket_missing',
       };
 
-      expect(serverSignals, hasLength(73));
+      expect(serverSignals, hasLength(74));
       for (final entry in serverSignals.entries) {
         expect(entry.key, entry.value);
       }
       expect(Signal.values.toSet(), serverSignals.values.toSet());
-      expect(Signal.values, hasLength(73), reason: 'no duplicates');
+      expect(Signal.values, hasLength(74), reason: 'no duplicates');
       expect(Signal.values, isNot(contains('app_attest_key_churn')));
     });
 
