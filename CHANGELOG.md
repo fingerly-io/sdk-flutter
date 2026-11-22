@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.3
+
+- `Signal` names `aiSpoofed` (`ai_spoofed`, a client that names a known AI
+  agent but fails its operator's check), `identityObfuscated`
+  (`identity_obfuscated`, an opt-in strict identity-randomisation mode in a
+  browser) and `bootloaderUnlocked` (`bootloader_unlocked`, an Android device
+  whose bootloader is unlocked), and no longer has `vpnTimezone`, because the
+  server no longer reports `vpn_timezone`. The native SDKs stay iOS `0.4.1`
+  and Android `0.4.0`. Nothing collected or sent changes.
+
 ## 0.4.2
 
 - Fixes minified Android release builds: R8 stopped with "Missing class

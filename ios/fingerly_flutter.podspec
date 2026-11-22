@@ -26,7 +26,7 @@ Pod::Spec.new do |s|
   # macOS filesystem; naming this pod `fingerly` makes the native target depend on
   # itself and prevents every Flutter iOS application from compiling.
   s.name             = 'fingerly_flutter'
-  s.version          = '0.4.2'
+  s.version          = '0.4.3'
   s.summary          = 'Device intelligence and fraud signals for Flutter.'
   s.description      = <<~DESC
     The Flutter binding for the Fingerly fraud detection platform. Calls the
