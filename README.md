@@ -20,7 +20,7 @@
 
 ## What is this
 
-`fingerly_flutter` (`0.4.2`) is the Flutter binding to the Fingerly native iOS (`0.4.1`) and Android (`0.4.0`) SDKs, which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
+`fingerly_flutter` (`0.4.3`) is the Flutter binding to the Fingerly native iOS (`0.4.1`) and Android (`0.4.0`) SDKs, which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
 
 ## Getting started
 
@@ -29,7 +29,7 @@
 
    ```yaml
    dependencies:
-     fingerly_flutter: ^0.4.2
+     fingerly_flutter: ^0.4.3
    ```
 
 3. **Identify.**

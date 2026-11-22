@@ -63,7 +63,6 @@ abstract final class Signal {
       'residential_proxy_high_confidence';
   static const String vpn = 'vpn';
   static const String vpnPublic = 'vpn_public';
-  static const String vpnTimezone = 'vpn_timezone';
   static const String vpnRelay = 'vpn_relay';
   static const String vpnMobile = 'vpn_mobile';
   static const String vpnOsMismatch = 'vpn_os_mismatch';
@@ -89,6 +88,7 @@ abstract final class Signal {
   static const String jailbreak = 'jailbreak';
   static const String rootedDevice = 'rooted_device';
   static const String rootApps = 'root_apps';
+  static const String bootloaderUnlocked = 'bootloader_unlocked';
   static const String playDeviceIntegrityFailed =
       'play_device_integrity_failed';
   static const String clonedApp = 'cloned_app';
@@ -105,11 +105,13 @@ abstract final class Signal {
   static const String tampering = 'tampering';
   static const String antidetectBrowser = 'antidetect_browser';
   static const String fingerprintSuppressed = 'fingerprint_suppressed';
+  static const String identityObfuscated = 'identity_obfuscated';
   static const String developerTools = 'developer_tools';
   static const String remoteControl = 'remote_control';
   static const String bot = 'bot';
   static const String automation = 'automation';
   static const String badBot = 'bad_bot';
+  static const String aiSpoofed = 'ai_spoofed';
   static const String fetchMetadataMissing = 'fetch_metadata_missing';
   static const String webTicketMissing = 'web_ticket_missing';
   static const String webTicketInvalid = 'web_ticket_invalid';
@@ -140,7 +142,6 @@ abstract final class Signal {
     residentialProxyHighConfidence,
     vpn,
     vpnPublic,
-    vpnTimezone,
     vpnRelay,
     vpnMobile,
     vpnOsMismatch,
@@ -166,6 +167,7 @@ abstract final class Signal {
     jailbreak,
     rootedDevice,
     rootApps,
+    bootloaderUnlocked,
     playDeviceIntegrityFailed,
     clonedApp,
     appCloner,
@@ -181,11 +183,13 @@ abstract final class Signal {
     tampering,
     antidetectBrowser,
     fingerprintSuppressed,
+    identityObfuscated,
     developerTools,
     remoteControl,
     bot,
     automation,
     badBot,
+    aiSpoofed,
     fetchMetadataMissing,
     webTicketMissing,
     webTicketInvalid,

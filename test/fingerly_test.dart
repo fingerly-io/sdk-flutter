@@ -570,6 +570,7 @@ void main() {
       // The server's list (server/domain/risk), member by member.
       const serverSignals = <String, String>{
         Signal.activeCall: 'active_call',
+        Signal.aiSpoofed: 'ai_spoofed',
         Signal.androidEmulator: 'android_emulator',
         Signal.antidetectBrowser: 'antidetect_browser',
         Signal.anycastIp: 'anycast_ip',
@@ -580,6 +581,7 @@ void main() {
         Signal.automation: 'automation',
         Signal.badBot: 'bad_bot',
         Signal.bogonIp: 'bogon_ip',
+        Signal.bootloaderUnlocked: 'bootloader_unlocked',
         Signal.bot: 'bot',
         Signal.browserTampering: 'browser_tampering',
         Signal.clonedApp: 'cloned_app',
@@ -599,6 +601,7 @@ void main() {
         Signal.fridaDetected: 'frida_detected',
         Signal.geoMismatch: 'geo_mismatch',
         Signal.highActivity: 'high_activity',
+        Signal.identityObfuscated: 'identity_obfuscated',
         Signal.incognito: 'incognito',
         Signal.incognitoMode: 'incognito_mode',
         Signal.iosSimulator: 'ios_simulator',
@@ -642,17 +645,16 @@ void main() {
         Signal.vpnOsMismatch: 'vpn_os_mismatch',
         Signal.vpnPublic: 'vpn_public',
         Signal.vpnRelay: 'vpn_relay',
-        Signal.vpnTimezone: 'vpn_timezone',
         Signal.webTicketInvalid: 'web_ticket_invalid',
         Signal.webTicketMissing: 'web_ticket_missing',
       };
 
-      expect(serverSignals, hasLength(73));
+      expect(serverSignals, hasLength(75));
       for (final entry in serverSignals.entries) {
         expect(entry.key, entry.value);
       }
       expect(Signal.values.toSet(), serverSignals.values.toSet());
-      expect(Signal.values, hasLength(73), reason: 'no duplicates');
+      expect(Signal.values, hasLength(75), reason: 'no duplicates');
       expect(Signal.values, isNot(contains('app_attest_key_churn')));
     });
 
@@ -1012,18 +1014,18 @@ void main() {
     });
   });
 
-  group('0.4.2 version parity', () {
+  group('0.4.3 version parity', () {
     test(
-        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.2',
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.3',
         () {
-      expect(Fingerly.pluginVersion, '0.4.2');
+      expect(Fingerly.pluginVersion, '0.4.3');
 
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec, contains('version: 0.4.2'));
+      expect(pubspec, contains('version: 0.4.3'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
       expect(podspec, contains("native_version = '0.4.1'"));
-      expect(podspec, contains("s.version          = '0.4.2'"));
+      expect(podspec, contains("s.version          = '0.4.3'"));
       expect(
         podspec,
         contains(
@@ -1043,7 +1045,7 @@ void main() {
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final gradle = File('android/build.gradle').readAsStringSync();
-      expect(gradle, contains("version '0.4.2'"));
+      expect(gradle, contains("version '0.4.3'"));
       expect(gradle, contains('mavenLocal()'));
       // An app that leaves out the optional artifacts must still pass R8.
       expect(gradle, contains("consumerProguardFiles 'consumer-rules.pro'"));
@@ -1053,10 +1055,10 @@ void main() {
       expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
-      expect(changelog, contains('## 0.4.2'));
+      expect(changelog, contains('## 0.4.3'));
 
       final readme = File('README.md').readAsStringSync();
-      expect(readme, contains('fingerly_flutter: ^0.4.2'));
+      expect(readme, contains('fingerly_flutter: ^0.4.3'));
       expect(readme, contains('io.fingerly:fingerly:0.4.0'));
     });
   });
