@@ -88,6 +88,7 @@ abstract final class Signal {
   static const String jailbreak = 'jailbreak';
   static const String rootedDevice = 'rooted_device';
   static const String rootApps = 'root_apps';
+  static const String bootloaderUnlocked = 'bootloader_unlocked';
   static const String playDeviceIntegrityFailed =
       'play_device_integrity_failed';
   static const String clonedApp = 'cloned_app';
@@ -166,6 +167,7 @@ abstract final class Signal {
     jailbreak,
     rootedDevice,
     rootApps,
+    bootloaderUnlocked,
     playDeviceIntegrityFailed,
     clonedApp,
     appCloner,

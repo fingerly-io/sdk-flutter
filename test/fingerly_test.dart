@@ -581,6 +581,7 @@ void main() {
         Signal.automation: 'automation',
         Signal.badBot: 'bad_bot',
         Signal.bogonIp: 'bogon_ip',
+        Signal.bootloaderUnlocked: 'bootloader_unlocked',
         Signal.bot: 'bot',
         Signal.browserTampering: 'browser_tampering',
         Signal.clonedApp: 'cloned_app',
@@ -648,12 +649,12 @@ void main() {
         Signal.webTicketMissing: 'web_ticket_missing',
       };
 
-      expect(serverSignals, hasLength(74));
+      expect(serverSignals, hasLength(75));
       for (final entry in serverSignals.entries) {
         expect(entry.key, entry.value);
       }
       expect(Signal.values.toSet(), serverSignals.values.toSet());
-      expect(Signal.values, hasLength(74), reason: 'no duplicates');
+      expect(Signal.values, hasLength(75), reason: 'no duplicates');
       expect(Signal.values, isNot(contains('app_attest_key_churn')));
     });
 
