@@ -90,7 +90,7 @@ class Fingerly {
   const Fingerly._();
 
   /// The Flutter plugin package version (`pubspec.yaml`).
-  static const String pluginVersion = '0.4.3';
+  static const String pluginVersion = '0.5.0';
 
   /// Configure the SDK from a [FingerlyConfig] and return a client.
   ///
