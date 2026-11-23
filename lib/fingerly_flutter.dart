@@ -90,7 +90,7 @@ class Fingerly {
   const Fingerly._();
 
   /// The Flutter plugin package version (`pubspec.yaml`).
-  static const String pluginVersion = '0.4.3';
+  static const String pluginVersion = '0.5.0';
 
   /// Configure the SDK from a [FingerlyConfig] and return a client.
   ///
@@ -225,8 +225,12 @@ class Fingerly {
   /// deletion.** Wipes both the local `install_id` record and local hardware
   /// attestation key state (`Application Support/io.fingerly.sdk/` container
   /// files and App Attest key state on iOS; the `install_id` record and
-  /// persistent `AndroidKeyStore` v3 ECDSA signing key on Android) so a future
-  /// re-consented session starts unlinked from any prior `visitorId`.
+  /// persistent `AndroidKeyStore` v3 ECDSA signing key on Android). On iOS a
+  /// future re-consented session starts unlinked from any prior `visitorId`.
+  /// On Android, also have your backend call the management API's "Erase a
+  /// visitor": until then, on a phone that passes hardware attestation, the
+  /// `ANDROID_ID` digest can still lead the next report back to the old
+  /// `visitorId`.
   ///
   /// Do **not** call this method during routine sign-out, user switching, or
   /// session rotation: unnecessary resets force hardware key re-attestation and

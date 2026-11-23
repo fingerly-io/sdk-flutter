@@ -20,7 +20,7 @@
 
 ## What is this
 
-`fingerly_flutter` (`0.4.3`) is the Flutter binding to the Fingerly native iOS (`0.4.1`) and Android (`0.4.0`) SDKs, which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
+`fingerly_flutter` (`0.5.0`) is the Flutter binding to the Fingerly native iOS (`0.4.1`) and Android (`0.5.0`) SDKs, which do the collecting. You call `identify()` from Dart and get back a request ID and a visitor ID to send to your own backend, which decides what to do. [Fingerly](https://fingerly.io) is a device intelligence API that helps you protect signups, logins and payments from fraud and abuse.
 
 ## Getting started
 
@@ -29,7 +29,7 @@
 
    ```yaml
    dependencies:
-     fingerly_flutter: ^0.4.3
+     fingerly_flutter: ^0.5.0
    ```
 
 3. **Identify.**
@@ -165,7 +165,7 @@ Every submission the native SDK sends carries the state it was collected under, 
 await Fingerly.deleteStoredIdentity();
 ```
 
-Deletes the install record the native SDK keeps on the device, including the install ID the server recognises it by, together with the local hardware attestation key state. Call it only when a user asks for their data to be erased or deletes their account, never on routine sign-out: each reset forces a fresh attestation key and a new install ID, and frequent resets on one device are themselves a risk signal. It needs no `load` and no consent, sends nothing, and completes once no record remains, including when there was none. It throws a `FingerlyException` when the delete fails. The next identification made with consent starts a new record; to stop identifying as well, set consent to `ConsentState.denied` first.
+Deletes the install record the native SDK keeps on the device, including the install ID the server recognises it by, together with the local hardware attestation key state. Call it only when a user asks for their data to be erased or deletes their account, never on routine sign-out: each reset forces a fresh attestation key and a new install ID, and frequent resets on one device are themselves a risk signal. It needs no `load` and no consent, sends nothing, and completes once no record remains, including when there was none. It throws a `FingerlyException` when the delete fails. The next identification made with consent starts a new record. On iOS it gets an unlinked `visitorId`. On Android, have your backend also call the management API's "Erase a visitor" (`DELETE /api/v1/management/organizations/{organization_id}/visitors/{visitor_id}`): until then, on a phone that passes hardware attestation, the `ANDROID_ID` digest can still lead the next report back to the old `visitorId`. To stop identifying as well, set consent to `ConsentState.denied` first.
 
 ## Errors
 
@@ -202,7 +202,7 @@ Five statuses, never a hole: `ok`, `unsupported`, `blocked`, `timeout`, `error`.
 
 ## Native SDKs
 
-The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.4.1`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.4.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
+The iOS plugin calls the [iOS SDK](https://github.com/fingerly-io/sdk-ios) (`0.4.1`) and the Android plugin calls the Android SDK (`io.fingerly:fingerly:0.5.0`). Each is a method-channel handler that forwards to that SDK's `FingerlyBridge` and hops the result back to the platform thread.
 
 <details>
 <summary><b>iOS</b></summary>
@@ -218,14 +218,16 @@ The Play Integrity project number passed to `load` is ignored on iOS.
 <details>
 <summary><b>Android</b></summary>
 
-The plugin depends on `io.fingerly:fingerly:0.4.0` from Fingerly's Maven repository, `https://maven.fingerly.io`, and adds that repository to the build itself, so no host-project repository override is required.
+The plugin depends on `io.fingerly:fingerly:0.5.0` from Fingerly's Maven repository, `https://maven.fingerly.io`, and adds that repository to the build itself, so no host-project repository override is required.
+
+**Reinstalls on Android.** The Android SDK reads `ANDROID_ID` and sends it only as a SHA-256 digest keyed by your app's signing certificate (`identity.ssaid_digest`), never the value itself; it needs no permission and shows no prompt. The server uses it only for a report that hardware attestation verified on a device with a locked bootloader and a verified boot, so on such a phone a reinstall keeps its `visitorId` until a factory reset or a change of your app's signing key. Any other report is identified by its install ID alone, as on iOS, where a reinstall always starts with a new install ID. Answer "Device or other IDs" in your app's Play Data safety form accordingly.
 
 **Installed-app checks are opt-in.** The checks for root managers, hooking frameworks and app cloners by package name ship in a separate artifact, `io.fingerly:fingerly-app-checks`, because Google Play treats the list of installed apps as personal and sensitive data. This plugin depends on `io.fingerly:fingerly` only. If your app can justify the package visibility in its Play review and wants these checks, add the artifact to your app's Android module, at the same version as `io.fingerly:fingerly`, and declare "App activity: Installed apps" in the Data safety form. The plugin finds the artifact and registers its provider on every `Fingerly.load`, so there is no native code to write:
 
 ```groovy
 // android/app/build.gradle
 dependencies {
-    implementation 'io.fingerly:fingerly-app-checks:0.4.0'
+    implementation 'io.fingerly:fingerly-app-checks:0.5.0'
 }
 ```
 
@@ -236,7 +238,7 @@ Without it, the report carries no installed-app fields and nothing about other a
 ```groovy
 // android/app/build.gradle
 dependencies {
-    implementation 'io.fingerly:fingerly-play-integrity:0.4.0'
+    implementation 'io.fingerly:fingerly-play-integrity:0.5.0'
 }
 ```
 

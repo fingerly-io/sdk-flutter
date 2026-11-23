@@ -823,6 +823,20 @@ void main() {
       expect(source, contains('install_id'));
       expect(source, contains('attestation key state'));
     });
+
+    test('an Android erasure also needs Erase a visitor (Android 0.5.0)', () {
+      final source = File('lib/fingerly_flutter.dart').readAsStringSync();
+      final readme = File('README.md').readAsStringSync();
+      for (final text in [source, readme]) {
+        expect(text, contains('Erase a'));
+        expect(text, contains('ANDROID_ID'));
+      }
+      expect(
+        readme,
+        contains('a reinstall keeps its `visitorId` until a factory reset'),
+      );
+      expect(source, isNot(contains('so a future\n  /// re-consented')));
+    });
   });
 
   group('error mapping & defensive decoding', () {
@@ -1014,18 +1028,18 @@ void main() {
     });
   });
 
-  group('0.4.3 version parity', () {
+  group('0.5.0 version parity', () {
     test(
-        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.4.3',
+        'plugin, podspec, Package.swift, build.gradle, and docs agree on 0.5.0',
         () {
-      expect(Fingerly.pluginVersion, '0.4.3');
+      expect(Fingerly.pluginVersion, '0.5.0');
 
       final pubspec = File('pubspec.yaml').readAsStringSync();
-      expect(pubspec, contains('version: 0.4.3'));
+      expect(pubspec, contains('version: 0.5.0'));
 
       final podspec = File('ios/fingerly_flutter.podspec').readAsStringSync();
       expect(podspec, contains("native_version = '0.4.1'"));
-      expect(podspec, contains("s.version          = '0.4.3'"));
+      expect(podspec, contains("s.version          = '0.5.0'"));
       expect(
         podspec,
         contains(
@@ -1045,21 +1059,26 @@ void main() {
       expect(spm, contains('FINGERLY_XCFRAMEWORK_PATH'));
 
       final gradle = File('android/build.gradle').readAsStringSync();
-      expect(gradle, contains("version '0.4.3'"));
+      expect(gradle, contains("version '0.5.0'"));
       expect(gradle, contains('mavenLocal()'));
       // An app that leaves out the optional artifacts must still pass R8.
       expect(gradle, contains("consumerProguardFiles 'consumer-rules.pro'"));
       final rules = File('android/consumer-rules.pro').readAsStringSync();
       expect(rules, contains('-dontwarn io.fingerly.sdk.appchecks.**'));
       expect(rules, contains('-dontwarn io.fingerly.sdk.playintegrity.**'));
-      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
+      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.5.0'"));
+      expect(gradle,
+          contains("compileOnly 'io.fingerly:fingerly-app-checks:0.5.0'"));
+      expect(gradle,
+          contains("compileOnly 'io.fingerly:fingerly-play-integrity:0.5.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
-      expect(changelog, contains('## 0.4.3'));
+      expect(changelog, contains('## 0.5.0'));
 
       final readme = File('README.md').readAsStringSync();
-      expect(readme, contains('fingerly_flutter: ^0.4.3'));
-      expect(readme, contains('io.fingerly:fingerly:0.4.0'));
+      expect(readme, contains('fingerly_flutter: ^0.5.0'));
+      expect(readme, contains('io.fingerly:fingerly:0.5.0'));
+      expect(readme, isNot(contains('io.fingerly:fingerly:0.4.0')));
     });
   });
 }
