@@ -823,6 +823,20 @@ void main() {
       expect(source, contains('install_id'));
       expect(source, contains('attestation key state'));
     });
+
+    test('an Android erasure also needs Erase a visitor (Android 0.5.0)', () {
+      final source = File('lib/fingerly_flutter.dart').readAsStringSync();
+      final readme = File('README.md').readAsStringSync();
+      for (final text in [source, readme]) {
+        expect(text, contains('Erase a'));
+        expect(text, contains('ANDROID_ID'));
+      }
+      expect(
+        readme,
+        contains('a reinstall keeps its `visitorId` until a factory reset'),
+      );
+      expect(source, isNot(contains('so a future\n  /// re-consented')));
+    });
   });
 
   group('error mapping & defensive decoding', () {
@@ -1052,14 +1066,19 @@ void main() {
       final rules = File('android/consumer-rules.pro').readAsStringSync();
       expect(rules, contains('-dontwarn io.fingerly.sdk.appchecks.**'));
       expect(rules, contains('-dontwarn io.fingerly.sdk.playintegrity.**'));
-      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.4.0'"));
+      expect(gradle, contains("implementation 'io.fingerly:fingerly:0.5.0'"));
+      expect(gradle,
+          contains("compileOnly 'io.fingerly:fingerly-app-checks:0.5.0'"));
+      expect(gradle,
+          contains("compileOnly 'io.fingerly:fingerly-play-integrity:0.5.0'"));
 
       final changelog = File('CHANGELOG.md').readAsStringSync();
       expect(changelog, contains('## 0.4.3'));
 
       final readme = File('README.md').readAsStringSync();
       expect(readme, contains('fingerly_flutter: ^0.4.3'));
-      expect(readme, contains('io.fingerly:fingerly:0.4.0'));
+      expect(readme, contains('io.fingerly:fingerly:0.5.0'));
+      expect(readme, isNot(contains('io.fingerly:fingerly:0.4.0')));
     });
   });
 }
